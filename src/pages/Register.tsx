@@ -18,7 +18,7 @@ type Step2Errors = Partial<Record<'nombre' | 'apellido' | 'telefono' | 'piso' | 
 
 const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d).{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const NAME_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-]{2,50}$/
+const NAME_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s-]{2,50}$/
 const ALPHANUMERIC_REGEX = /^[a-zA-Z0-9]{1,10}$/
 const PHONE_PREFIX = '+51 '
 
