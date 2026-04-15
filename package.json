@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
@@ -32,6 +33,8 @@
     "globals": "^17.4.0",
     "jsdom": "^29.0.2",
     "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.2",
     "vite": "^8.0.4",
     "vitest": "^4.1.3"
   }

@@ -1,16 +1,84 @@
-# React + Vite
+# Zity
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema de gestion de solicitudes de mantenimiento para edificios y condominios.
 
-Currently, two official plugins are available:
+## Prerequisitos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- [Node.js](https://nodejs.org/) v18 o superior
+- Cuenta de [Supabase](https://supabase.com/) (para base de datos y autenticacion)
 
-## React Compiler
+## Configuracion de entorno
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Copia el archivo de ejemplo de variables de entorno:
 
-## Expanding the ESLint configuration
+```bash
+cp .env.example .env
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+2. Edita `.env` con las credenciales de tu proyecto Supabase:
+
+```
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-anon-key
+```
+
+> Estas variables se obtienen desde el dashboard de Supabase en Settings > API.
+
+## Correr localmente
+
+```bash
+npm install
+npm run dev
+```
+
+La app estara disponible en `http://localhost:5173`.
+
+## Ejecutar pruebas
+
+```bash
+# Tests en modo watch
+npm test
+
+# Tests una sola vez
+npm run test:run
+
+# Tests con reporte de cobertura
+npm run test:coverage
+```
+
+## Lint
+
+```bash
+npm run lint
+```
+
+## Datos demo (seed)
+
+```bash
+npm run seed
+```
+
+Carga datos ficticios para demostracion. Sin PII real.
+
+## Build para produccion
+
+```bash
+npm run build
+npm run preview
+```
+
+## Stack
+
+| Capa | Tecnologia |
+|---|---|
+| Frontend | React + Vite + TailwindCSS |
+| Auth + DB | Supabase (Postgres + Auth + Realtime) |
+| Deploy | Vercel |
+| CI/CD | GitHub Actions |
+| Testing | Vitest + Testing Library |
+
+## Politica de datos
+
+- Todos los datos de demo son ficticios.
+- Prohibido subir PII real al repositorio.
+- `.env` y `.env.local` estan en `.gitignore`.
