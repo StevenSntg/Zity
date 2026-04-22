@@ -1,96 +1,128 @@
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Link, useNavigate } from 'react-router-dom'
-import zityLogo from '../assets/zity_logo.png'
+import AdminShell from '../components/admin/AdminShell'
+
+type StatCard = {
+  label: string
+  value: string
+  trend?: string
+  accent: 'primary' | 'accent' | 'success'
+  icon: React.ReactNode
+}
+
+const STAT_CARDS: StatCard[] = [
+  {
+    label: 'Solicitudes pendientes',
+    value: '—',
+    accent: 'accent',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'En progreso',
+    value: '—',
+    accent: 'primary',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Resueltas este mes',
+    value: '—',
+    accent: 'success',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+]
+
+const ACCENT_STYLES: Record<StatCard['accent'], string> = {
+  primary: 'bg-primary-50 text-primary-700',
+  accent: 'bg-accent-50 text-accent-700',
+  success: 'bg-green-50 text-success',
+}
 
 export default function AdminDashboard() {
-  const { profile, signOut } = useAuth()
-  const navigate = useNavigate()
-
-  async function handleSignOut() {
-    await signOut()
-    navigate('/login', { replace: true })
-  }
+  const { profile } = useAuth()
 
   return (
-    <div className="min-h-screen bg-warm-50">
-      <header className="bg-white border-b border-warm-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src={zityLogo} alt="Zity" className="h-9 w-auto" />
-            <span className="text-xs font-semibold bg-primary-600 text-white px-2.5 py-1 rounded-full tracking-wider uppercase">
-              Admin
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-primary-700">
-              {profile?.nombre} {profile?.apellido}
-            </span>
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-warm-400 hover:text-error transition-colors font-medium"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="animate-fade-in">
-          <h2 className="font-display text-2xl font-semibold text-primary-900">
-            Panel de Administración
-          </h2>
-          <p className="mt-2 text-warm-400">
-            Bienvenido, {profile?.nombre}. Aquí gestionarás las solicitudes del edificio.
-          </p>
-        </div>
-
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in delay-2">
-          {[
-            { label: 'Solicitudes pendientes', value: '—', color: 'bg-accent-50 text-accent-700' },
-            { label: 'En progreso', value: '—', color: 'bg-primary-50 text-primary-700' },
-            { label: 'Resueltas este mes', value: '—', color: 'bg-green-50 text-success' },
-          ].map(card => (
-            <div key={card.label} className="bg-white rounded-xl border border-warm-200 p-6">
-              <p className="text-sm text-warm-400">{card.label}</p>
-              <p className={`mt-2 text-3xl font-display font-semibold ${card.color.split(' ')[1]}`}>
-                {card.value}
-              </p>
+    <AdminShell
+      title="Panel de administración"
+      subtitle={`Bienvenido, ${profile?.nombre ?? 'admin'}. Aquí gestionas el edificio.`}
+    >
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 animate-fade-in delay-1">
+        {STAT_CARDS.map(card => (
+          <div
+            key={card.label}
+            className="bg-white rounded-xl border border-warm-200 p-5 sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <p className="text-sm text-warm-400 leading-tight">{card.label}</p>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${ACCENT_STYLES[card.accent]}`}>
+                {card.icon}
+              </div>
             </div>
-          ))}
-        </div>
+            <p className="font-display text-3xl font-semibold text-primary-900 leading-none">
+              {card.value}
+            </p>
+            <p className="mt-1.5 text-xs text-warm-400">Datos disponibles en Sprint 3</p>
+          </div>
+        ))}
+      </div>
 
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in delay-3">
+      {/* Quick actions */}
+      <div className="mt-6 sm:mt-8">
+        <h2 className="font-display text-lg sm:text-xl font-semibold text-primary-900 mb-4 animate-fade-in delay-2">
+          Accesos rápidos
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in delay-3">
           <Link
             to="/admin/usuarios"
-            className="bg-white rounded-xl border border-warm-200 p-6 hover:border-primary-300 hover:shadow-sm transition-all group"
+            className="group bg-white rounded-xl border border-warm-200 p-5 sm:p-6 hover:border-primary-300 hover:shadow-sm transition-all cursor-pointer"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center group-hover:bg-primary-100 transition-colors">
-                <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-11 h-11 rounded-lg bg-primary-50 flex items-center justify-center group-hover:bg-primary-100 transition-colors shrink-0">
+                <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <h3 className="font-medium text-primary-900">Gestión de usuarios</h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-medium text-primary-900 mb-1">Gestión de usuarios</h3>
+                <p className="text-sm text-warm-400 leading-relaxed">
+                  Ver, filtrar, invitar y bloquear usuarios del edificio.
+                </p>
+              </div>
+              <svg className="w-5 h-5 text-warm-400 group-hover:text-primary-600 transition-colors shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
             </div>
-            <p className="text-sm text-warm-400">
-              Ver, filtrar, bloquear e invitar usuarios al edificio.
-            </p>
           </Link>
 
-          <div className="bg-white rounded-xl border border-warm-200 p-6 opacity-50">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-warm-100 flex items-center justify-center">
-                <svg className="w-5 h-5 text-warm-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="bg-white rounded-xl border border-warm-200 p-5 sm:p-6 opacity-60 cursor-not-allowed">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-11 h-11 rounded-lg bg-warm-100 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-warm-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
-              <h3 className="font-medium text-primary-900">Solicitudes</h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-medium text-primary-900 mb-1">Solicitudes</h3>
+                <p className="text-sm text-warm-400 leading-relaxed">
+                  Próximamente · disponible en Sprint 3.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-warm-400">Disponible en Sprint 3.</p>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminShell>
   )
 }

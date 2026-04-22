@@ -1,0 +1,223 @@
+import { useEffect, useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import zityLogo from '../../assets/zity_logo.png'
+
+type Props = {
+  children: React.ReactNode
+  title: string
+  subtitle?: string
+  actions?: React.ReactNode
+}
+
+const NAV = [
+  {
+    to: '/admin',
+    label: 'Dashboard',
+    end: true,
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+  },
+  {
+    to: '/admin/usuarios',
+    label: 'Usuarios',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+]
+
+function iniciales(nombre?: string, apellido?: string): string {
+  const n = (nombre ?? '').trim()[0] ?? ''
+  const a = (apellido ?? '').trim()[0] ?? ''
+  return (n + a).toUpperCase() || 'AD'
+}
+
+export default function AdminShell({ children, title, subtitle, actions }: Props) {
+  const { profile, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  const [drawerAbierto, setDrawerAbierto] = useState(false)
+
+  // Bloquear scroll del body cuando el drawer está abierto (mobile).
+  useEffect(() => {
+    if (drawerAbierto) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = '' }
+    }
+  }, [drawerAbierto])
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <div className="min-h-screen bg-warm-50 flex">
+      {/* Sidebar — desktop */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:border-warm-200 lg:bg-white">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-warm-200">
+          <img src={zityLogo} alt="Zity" className="h-8 w-auto" />
+          <span className="text-[0.65rem] font-semibold bg-primary-600 text-white px-2 py-0.5 rounded-full tracking-wider uppercase">
+            Admin
+          </span>
+        </div>
+
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {NAV.map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary-50 text-primary-700'
+                    : 'text-warm-400 hover:bg-warm-50 hover:text-primary-700'
+                }`
+              }
+            >
+              {item.icon}
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="border-t border-warm-200 p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+              {iniciales(profile?.nombre, profile?.apellido)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-primary-900 truncate">
+                {profile?.nombre} {profile?.apellido}
+              </p>
+              <p className="text-xs text-warm-400 truncate">{profile?.email}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="w-full text-sm text-warm-400 hover:text-error transition-colors font-medium py-2 rounded-md hover:bg-warm-50 cursor-pointer"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Top bar — mobile */}
+      <header className="lg:hidden fixed top-0 inset-x-0 z-30 bg-white border-b border-warm-200">
+        <div className="flex items-center justify-between px-4 h-14">
+          <div className="flex items-center gap-2.5">
+            <img src={zityLogo} alt="Zity" className="h-7 w-auto" />
+            <span className="text-[0.6rem] font-semibold bg-primary-600 text-white px-2 py-0.5 rounded-full tracking-wider uppercase">
+              Admin
+            </span>
+          </div>
+          <button
+            onClick={() => setDrawerAbierto(true)}
+            aria-label="Abrir menú"
+            className="min-w-11 min-h-11 -mr-2 flex items-center justify-center text-primary-700 hover:bg-warm-50 rounded-md cursor-pointer"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Drawer — mobile */}
+      {drawerAbierto && (
+        <>
+          <div
+            onClick={() => setDrawerAbierto(false)}
+            className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm animate-fade-in"
+            aria-hidden="true"
+          />
+          <aside className="lg:hidden fixed top-0 right-0 bottom-0 z-50 w-[85%] max-w-xs bg-white shadow-2xl animate-fade-in-right flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-warm-200">
+              <span className="font-display text-lg font-semibold text-primary-900">Menú</span>
+              <button
+                onClick={() => setDrawerAbierto(false)}
+                aria-label="Cerrar menú"
+                className="min-w-11 min-h-11 -mr-2 flex items-center justify-center text-warm-400 hover:text-primary-700 rounded-md cursor-pointer"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-warm-200 bg-warm-50">
+              <div className="w-11 h-11 rounded-full bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                {iniciales(profile?.nombre, profile?.apellido)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-primary-900 truncate">
+                  {profile?.nombre} {profile?.apellido}
+                </p>
+                <p className="text-xs text-warm-400 truncate">{profile?.email}</p>
+              </div>
+            </div>
+
+            <nav className="flex-1 px-3 py-3 space-y-1">
+              {NAV.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={() => setDrawerAbierto(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium transition-colors ${
+                      isActive
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-primary-800 hover:bg-warm-50'
+                    }`
+                  }
+                >
+                  {item.icon}
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="border-t border-warm-200 p-4">
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center gap-2 text-sm text-error font-medium py-3 rounded-md hover:bg-error/5 transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Cerrar sesión
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* Main */}
+      <div className="flex-1 lg:ml-64 pt-14 lg:pt-0">
+        <div className="px-4 sm:px-6 lg:px-10 py-6 sm:py-8 lg:py-10 max-w-7xl mx-auto w-full">
+          <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between animate-fade-in">
+            <div className="min-w-0">
+              <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-semibold text-primary-900 tracking-tight">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="mt-1 text-sm text-warm-400">{subtitle}</p>
+              )}
+            </div>
+            {actions && <div className="shrink-0">{actions}</div>}
+          </div>
+
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}

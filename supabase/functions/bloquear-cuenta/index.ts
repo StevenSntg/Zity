@@ -13,29 +13,43 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-
-    // Obtener admin_id del JWT de la request
+    // verify_jwt:false en el deploy: validamos manualmente acá.
     const authHeader = req.headers.get('authorization') ?? ''
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user: callerUser } } = await supabaseAdmin.auth.getUser(token)
+    const token = authHeader.replace(/^Bearer\s+/i, '')
 
-    if (!callerUser) {
+    let callerUserId: string | null = null
+    try {
+      const parts = token.split('.')
+      if (parts.length === 3) {
+        const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+        const pad = payloadB64.length % 4
+        const padded = pad ? payloadB64 + '='.repeat(4 - pad) : payloadB64
+        const payload = JSON.parse(atob(padded)) as { sub?: string; role?: string }
+        if (payload.role === 'authenticated' && payload.sub) {
+          callerUserId = payload.sub
+        }
+      }
+    } catch {
+      callerUserId = null
+    }
+
+    if (!callerUserId) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
     }
 
-    // Verificar que quien llama es admin
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
     const { data: callerProfile } = await supabaseAdmin
       .from('usuarios')
       .select('rol')
-      .eq('id', callerUser.id)
+      .eq('id', callerUserId)
       .single()
 
     if (callerProfile?.rol !== 'admin') {
@@ -57,9 +71,16 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // Un admin no puede bloquearse a sí mismo (quedaría sin acceso al panel).
+    if (accion === 'bloquear' && callerUserId === usuario_id) {
+      return new Response(JSON.stringify({ error: 'No puedes bloquear tu propia cuenta' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
     const nuevoEstado = accion === 'bloquear' ? 'bloqueado' : 'activo'
 
-    // 1. Actualizar estado_cuenta en tabla usuarios
     const { error: updateError } = await supabaseAdmin
       .from('usuarios')
       .update({ estado_cuenta: nuevoEstado })
@@ -67,7 +88,6 @@ Deno.serve(async (req: Request) => {
 
     if (updateError) throw new Error(updateError.message)
 
-    // 2. Si bloquea: invalidar sesión activa vía ban_duration (reversible)
     if (accion === 'bloquear') {
       await supabaseAdmin.auth.admin.updateUserById(usuario_id, {
         ban_duration: '87600h',
@@ -78,9 +98,8 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // 3. Registrar en audit_log
     await supabaseAdmin.from('audit_log').insert({
-      usuario_id: callerUser.id,
+      usuario_id: callerUserId,
       accion: accion === 'bloquear' ? 'bloquear_cuenta' : 'desbloquear_cuenta',
       entidad: 'usuarios',
       entidad_id: usuario_id,

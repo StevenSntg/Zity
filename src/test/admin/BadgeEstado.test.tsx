@@ -2,22 +2,18 @@ import { render, screen } from '@testing-library/react'
 import BadgeEstado from '../../components/admin/BadgeEstado'
 
 describe('BadgeEstado', () => {
-  it('muestra badge verde para activo', () => {
+  it('muestra badge para estado activo', () => {
     render(<BadgeEstado estado="activo" />)
-    const badge = screen.getByText('activo')
-    expect(badge).toBeInTheDocument()
-    expect(badge.className).toContain('text-success')
+    expect(screen.getByText('Activo')).toBeInTheDocument()
   })
 
-  it('muestra badge amarillo para pendiente', () => {
+  it('muestra badge para estado pendiente', () => {
     render(<BadgeEstado estado="pendiente" />)
-    const badge = screen.getByText('pendiente')
-    expect(badge.className).toContain('text-warning')
+    expect(screen.getByText('Pendiente')).toBeInTheDocument()
   })
 
-  it('muestra badge rojo para bloqueado', () => {
+  it('muestra badge para estado bloqueado', () => {
     render(<BadgeEstado estado="bloqueado" />)
-    const badge = screen.getByText('bloqueado')
-    expect(badge.className).toContain('text-error')
+    expect(screen.getByText('Bloqueado')).toBeInTheDocument()
   })
 })

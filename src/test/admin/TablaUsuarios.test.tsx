@@ -34,6 +34,10 @@ const mockUsuarios: Profile[] = [
   },
 ]
 
+// El componente renderiza ambas vistas (mobile cards y desktop table) en el DOM
+// y usa clases de Tailwind para mostrar solo una según breakpoint. En jsdom
+// ambas coexisten, por eso usamos getAllBy* para los tests.
+
 describe('TablaUsuarios', () => {
   it('renderiza nombre y email de usuarios', () => {
     render(
@@ -42,10 +46,11 @@ describe('TablaUsuarios', () => {
         loading={false}
         onBloquear={vi.fn()}
         onDesbloquear={vi.fn()}
+        onReenviar={vi.fn()}
       />
     )
-    expect(screen.getByText('Carlos Fuentes')).toBeInTheDocument()
-    expect(screen.getByText('carlos@test.com')).toBeInTheDocument()
+    expect(screen.getAllByText('Carlos Fuentes').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('carlos@test.com').length).toBeGreaterThan(0)
   })
 
   it('muestra empresa_tercero solo para técnicos', () => {
@@ -55,9 +60,10 @@ describe('TablaUsuarios', () => {
         loading={false}
         onBloquear={vi.fn()}
         onDesbloquear={vi.fn()}
+        onReenviar={vi.fn()}
       />
     )
-    expect(screen.getByText('TecnoEdif SAC')).toBeInTheDocument()
+    expect(screen.getAllByText('TecnoEdif SAC').length).toBeGreaterThan(0)
   })
 
   it('muestra spinner cuando loading es true', () => {
@@ -67,6 +73,7 @@ describe('TablaUsuarios', () => {
         loading={true}
         onBloquear={vi.fn()}
         onDesbloquear={vi.fn()}
+        onReenviar={vi.fn()}
       />
     )
     expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
@@ -80,9 +87,12 @@ describe('TablaUsuarios', () => {
         loading={false}
         onBloquear={onBloquear}
         onDesbloquear={vi.fn()}
+        onReenviar={vi.fn()}
       />
     )
-    fireEvent.click(screen.getByRole('button', { name: /bloquear/i }))
+    const botones = screen.getAllByRole('button', { name: /bloquear/i })
+    expect(botones.length).toBeGreaterThan(0)
+    fireEvent.click(botones[0])
     expect(onBloquear).toHaveBeenCalledWith(mockUsuarios[0])
   })
 })

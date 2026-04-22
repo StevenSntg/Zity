@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 import AuthLayout from '../components/AuthLayout'
 import PasswordInput from '../components/PasswordInput'
 
@@ -38,6 +39,10 @@ export default function ResetPassword() {
       setLoading(false)
       return
     }
+
+    // Cerramos la sesión de recuperación antes de redirigir para que el login
+    // vuelva a pedir credenciales en lugar de saltar directo al dashboard.
+    await supabase.auth.signOut()
 
     navigate('/login', {
       state: { message: 'Contraseña actualizada exitosamente. Inicia sesión con tu nueva contraseña.' },

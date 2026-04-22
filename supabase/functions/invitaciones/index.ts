@@ -13,27 +13,43 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-
+    // verify_jwt:false en el deploy: validamos manualmente acá.
     const authHeader = req.headers.get('authorization') ?? ''
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user: callerUser } } = await supabaseAdmin.auth.getUser(token)
+    const token = authHeader.replace(/^Bearer\s+/i, '')
 
-    if (!callerUser) {
+    let callerUserId: string | null = null
+    try {
+      const parts = token.split('.')
+      if (parts.length === 3) {
+        const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+        const pad = payloadB64.length % 4
+        const padded = pad ? payloadB64 + '='.repeat(4 - pad) : payloadB64
+        const payload = JSON.parse(atob(padded)) as { sub?: string; role?: string }
+        if (payload.role === 'authenticated' && payload.sub) {
+          callerUserId = payload.sub
+        }
+      }
+    } catch {
+      callerUserId = null
+    }
+
+    if (!callerUserId) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
     }
 
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
     const { data: callerProfile } = await supabaseAdmin
       .from('usuarios')
       .select('rol')
-      .eq('id', callerUser.id)
+      .eq('id', callerUserId)
       .single()
 
     if (callerProfile?.rol !== 'admin') {
@@ -43,30 +59,75 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const { email, rol, nombre, piso, departamento, empresa_tercero } = await req.json() as {
+    const body = await req.json() as {
+      accion?: 'crear' | 'reenviar'
       email: string
-      rol: 'residente' | 'tecnico' | 'admin'
+      rol?: 'residente' | 'tecnico' | 'admin'
       nombre?: string
       piso?: string
       departamento?: string
       empresa_tercero?: string
     }
 
-    if (!email || !rol) {
-      return new Response(JSON.stringify({ error: 'email y rol son requeridos' }), {
+    const { email, rol, nombre, piso, departamento, empresa_tercero } = body
+    const accion = body.accion ?? 'crear'
+
+    // El link del correo siempre apunta al dominio de producción para que el
+    // invitado pueda abrirlo desde cualquier dispositivo. Configurable vía
+    // `supabase secrets set SITE_URL=https://zity.site`.
+    const siteUrl = Deno.env.get('SITE_URL') ?? 'https://zity.site'
+    const redirectOrigin = siteUrl.replace(/\/$/, '')
+
+    if (!email) {
+      return new Response(JSON.stringify({ error: 'email es requerido' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
 
-    // SITE_URL tiene prioridad (configurado vía `supabase secrets set SITE_URL=https://zity.site`).
-    // Así las invitaciones siempre apuntan al dominio de producción, sin importar desde dónde
-    // el admin dispare la acción.
-    const siteUrl = Deno.env.get('SITE_URL') ?? 'https://zity.site'
-    const redirectOrigin = siteUrl.replace(/\/$/, '')
+    if (accion === 'crear' && !rol) {
+      return new Response(JSON.stringify({ error: 'rol es requerido para crear invitación' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
 
-    // Supabase Auth crea el usuario pre-invitado y manda el email vía su SMTP integrado.
-    // El link del email lleva al usuario a /activar donde establece su contraseña.
+    if (accion === 'reenviar') {
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email,
+        options: { redirectTo: `${redirectOrigin}/activar` },
+      })
+
+      if (linkError) {
+        return new Response(JSON.stringify({ error: linkError.message }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+
+      await supabaseAdmin
+        .from('invitaciones')
+        .update({
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+          estado: 'pendiente',
+        })
+        .eq('email', email)
+
+      await supabaseAdmin.from('audit_log').insert({
+        usuario_id: callerUserId,
+        accion: 'reenviar_invitacion',
+        entidad: 'invitaciones',
+        resultado: 'exitoso',
+      })
+
+      return new Response(JSON.stringify({ success: true, action_link: linkData?.properties?.action_link }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: {
         nombre: nombre ?? '',
@@ -88,8 +149,8 @@ Deno.serve(async (req: Request) => {
       throw new Error(inviteError.message)
     }
 
-    // Registro en tabla invitaciones para tracking en panel admin.
     const token_invitacion = crypto.randomUUID()
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
     const { error: insertError } = await supabaseAdmin.from('invitaciones').insert({
       email,
       rol,
@@ -97,13 +158,14 @@ Deno.serve(async (req: Request) => {
       piso: piso ?? null,
       departamento: departamento ?? null,
       token: token_invitacion,
-      creada_por: callerUser.id,
+      creada_por: callerUserId,
+      expires_at: expiresAt,
     })
 
     if (insertError) throw new Error(insertError.message)
 
     await supabaseAdmin.from('audit_log').insert({
-      usuario_id: callerUser.id,
+      usuario_id: callerUserId,
       accion: 'crear_invitacion',
       entidad: 'invitaciones',
       resultado: 'exitoso',

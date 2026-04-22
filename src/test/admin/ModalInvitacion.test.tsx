@@ -24,14 +24,17 @@ describe('ModalInvitacion', () => {
     render(<ModalInvitacion onEnviado={onEnviado} onCerrar={onCerrar} />)
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/nombre/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/rol/i)).toBeInTheDocument()
+    // El selector de rol ahora son botones en lugar de un <select>
+    expect(screen.getByRole('button', { name: /residente/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^tecnico$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^admin$/i })).toBeInTheDocument()
   })
 
   it('muestra campo empresa_tercero solo cuando rol es técnico', () => {
     render(<ModalInvitacion onEnviado={onEnviado} onCerrar={onCerrar} />)
     expect(screen.queryByLabelText(/empresa/i)).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText(/rol/i), { target: { value: 'tecnico' } })
+    fireEvent.click(screen.getByRole('button', { name: /^tecnico$/i }))
     expect(screen.getByLabelText(/empresa/i)).toBeInTheDocument()
   })
 
@@ -44,14 +47,11 @@ describe('ModalInvitacion', () => {
   it('muestra error si email tiene formato inválido', () => {
     render(<ModalInvitacion onEnviado={onEnviado} onCerrar={onCerrar} />)
 
-    // Establecer nombre válido y email inválido
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'invalid' } })
     fireEvent.change(screen.getByLabelText(/nombre/i), { target: { value: 'Test' } })
 
-    // Click en submit
     fireEvent.click(screen.getByRole('button', { name: /enviar invitación/i }))
 
-    // Verificar que NO se llamó a enviarInvitacion por errores de validación
     expect(mockEnviarInvitacion).not.toHaveBeenCalled()
   })
 })

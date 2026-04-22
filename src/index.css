@@ -129,10 +129,18 @@ body {
   border-radius: 0.5rem;
   background: white;
   font-family: var(--font-body);
-  font-size: 0.9375rem;
+  /* 16px en mobile evita el zoom automático de iOS al enfocar un input.
+     En viewports >= sm mantenemos el tamaño compacto original (15px). */
+  font-size: 1rem;
   color: #1a1a2e;
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
+}
+
+@media (min-width: 640px) {
+  .input-field {
+    font-size: 0.9375rem;
+  }
 }
 
 .input-field::placeholder {

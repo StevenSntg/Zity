@@ -39,6 +39,11 @@ const USERS = [
     password: 'Tecnico5678!',
     metadata: { nombre: 'Ana', apellido: 'Torres', rol: 'tecnico', piso: '', departamento: '', telefono: '+51 999 000 004', empresa_tercero: 'TecnoEdif SAC' },
   },
+  {
+    email: 'julia@zity-demo.com',
+    password: 'Residente3!',
+    metadata: { nombre: 'Julia', apellido: 'Romero', rol: 'residente', piso: '5', departamento: 'C', telefono: '+51 999 000 005' },
+  },
 ]
 
 async function cleanDb() {
@@ -131,7 +136,12 @@ async function seedInvitacion(adminId) {
 }
 
 async function main() {
-  await cleanDb()
+  // `--clean` borra los datos demo antes de insertar (uso recomendado en
+  // staging después de pruebas manuales). Sin la bandera el seed es
+  // idempotente gracias al upsert por id.
+  if (process.argv.includes('--clean')) {
+    await cleanDb()
+  }
   const ids = await seedUsers()
   const adminId = ids['carlos@zity-demo.com']
   if (adminId) await seedInvitacion(adminId)

@@ -1,18 +1,18 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useUsuarios } from '../../hooks/useUsuarios'
+import { useInvitacion } from '../../hooks/useInvitacion'
 import FiltrosUsuarios, { type FiltrosState } from '../../components/admin/FiltrosUsuarios'
 import TablaUsuarios from '../../components/admin/TablaUsuarios'
 import ModalConfirmacion from '../../components/admin/ModalConfirmacion'
 import ModalInvitacion from '../../components/admin/ModalInvitacion'
+import AdminShell from '../../components/admin/AdminShell'
 import { supabase } from '../../lib/supabase'
 import type { Profile } from '../../types/database'
-import zityLogo from '../../assets/zity_logo.png'
 
 export default function AdminUsuarios() {
-  const { profile, signOut } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { reenviarInvitacion } = useInvitacion()
 
   const [filtros, setFiltros] = useState<FiltrosState>({ rol: '', estado: '' })
   const { usuarios, loading, error, refetch } = useUsuarios(filtros)
@@ -24,11 +24,8 @@ export default function AdminUsuarios() {
 
   const [mostrarInvitacion, setMostrarInvitacion] = useState(false)
   const [confirmacionInvitacion, setConfirmacionInvitacion] = useState<string | null>(null)
-
-  async function handleSignOut() {
-    await signOut()
-    navigate('/login', { replace: true })
-  }
+  const [reenviandoEmail, setReenviandoEmail] = useState<string | null>(null)
+  const [mensajeReenvio, setMensajeReenvio] = useState<string | null>(null)
 
   function abrirModalBloquear(usuario: Profile) {
     setUsuarioAccion(usuario)
@@ -52,14 +49,28 @@ export default function AdminUsuarios() {
     })
 
     setCargandoAccion(false)
+    // Cerramos el modal pase lo que pase para que el error (si lo hubo) sea
+    // visible en el banner principal de la página.
+    setUsuarioAccion(null)
+    setTipoAccion(null)
 
     if (fnError || !data?.success) {
-      setErrorAccion(fnError?.message ?? data?.error ?? 'Error al realizar la acción')
+      // FunctionsHttpError expone el Response original en .context; extraemos
+      // el mensaje real del body antes de caer al genérico "non-2xx".
+      let mensaje = data?.error ?? fnError?.message ?? 'Error al realizar la acción'
+      const response = (fnError as { context?: Response } | null)?.context
+      if (response && typeof response.json === 'function') {
+        try {
+          const body = await response.json()
+          if (body?.error) mensaje = body.error
+        } catch {
+          // El body no era JSON; nos quedamos con el mensaje genérico.
+        }
+      }
+      setErrorAccion(mensaje)
       return
     }
 
-    setUsuarioAccion(null)
-    setTipoAccion(null)
     refetch()
   }
 
@@ -69,80 +80,82 @@ export default function AdminUsuarios() {
     setTimeout(() => setConfirmacionInvitacion(null), 5000)
   }
 
+  async function handleReenviar(usuario: Profile) {
+    setReenviandoEmail(usuario.email)
+    setErrorAccion(null)
+    const { ok, error: reenvioError } = await reenviarInvitacion(usuario.email)
+    setReenviandoEmail(null)
+
+    if (!ok) {
+      setErrorAccion(reenvioError ?? 'Error al reenviar invitación')
+      return
+    }
+
+    setMensajeReenvio(`Invitación reenviada a ${usuario.email}`)
+    setTimeout(() => setMensajeReenvio(null), 5000)
+    refetch()
+  }
+
+  const accionesHeader = (
+    <button
+      onClick={() => setMostrarInvitacion(true)}
+      className="btn-primary w-full sm:w-auto! px-5 cursor-pointer"
+    >
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+      </svg>
+      <span>Invitar usuario</span>
+    </button>
+  )
+
   return (
-    <div className="min-h-screen bg-warm-50">
-      <header className="bg-white border-b border-warm-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src={zityLogo} alt="Zity" className="h-9 w-auto" />
-            <span className="text-xs font-semibold bg-primary-600 text-white px-2.5 py-1 rounded-full tracking-wider uppercase">
-              Admin
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/admin" className="text-sm text-warm-400 hover:text-primary-700 transition-colors">
-              Dashboard
-            </Link>
-            <span className="text-sm text-primary-700">{profile?.nombre} {profile?.apellido}</span>
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-warm-400 hover:text-error transition-colors font-medium"
-            >
-              Cerrar sesión
-            </button>
-          </div>
+    <AdminShell
+      title="Gestión de usuarios"
+      subtitle={`${usuarios.length} usuario${usuarios.length !== 1 ? 's' : ''} encontrado${usuarios.length !== 1 ? 's' : ''}`}
+      actions={accionesHeader}
+    >
+      {confirmacionInvitacion && (
+        <div className="mb-4 p-4 bg-success/10 border border-success/20 rounded-lg text-success text-sm animate-scale-in flex items-start gap-2">
+          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Invitación enviada a <strong className="font-semibold">{confirmacionInvitacion}</strong></span>
         </div>
-      </header>
+      )}
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-8 animate-fade-in">
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-primary-900">
-              Gestión de usuarios
-            </h2>
-            <p className="mt-1 text-warm-400 text-sm">
-              {usuarios.length} usuario{usuarios.length !== 1 ? 's' : ''} encontrado{usuarios.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <button
-            onClick={() => setMostrarInvitacion(true)}
-            className="btn-primary w-auto!"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Invitar usuario
-          </button>
+      {mensajeReenvio && (
+        <div className="mb-4 p-4 bg-success/10 border border-success/20 rounded-lg text-success text-sm animate-scale-in flex items-start gap-2">
+          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{mensajeReenvio}</span>
         </div>
+      )}
 
-        {confirmacionInvitacion && (
-          <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg text-success text-sm animate-scale-in flex items-center gap-2">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            Invitación enviada a {confirmacionInvitacion}
-          </div>
-        )}
-
-        {(error || errorAccion) && (
-          <div className="mb-6 p-4 bg-error/10 border border-error/20 rounded-lg text-error text-sm">
-            {error ?? errorAccion}
-          </div>
-        )}
-
-        <div className="mb-6 animate-fade-in delay-1">
-          <FiltrosUsuarios filtros={filtros} onChange={setFiltros} />
+      {(error || errorAccion) && (
+        <div className="mb-4 p-4 bg-error/10 border border-error/20 rounded-lg text-error text-sm flex items-start gap-2">
+          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>{error ?? errorAccion}</span>
         </div>
+      )}
 
-        <div className="bg-white rounded-xl border border-warm-200 animate-fade-in delay-2">
-          <TablaUsuarios
-            usuarios={usuarios}
-            loading={loading}
-            onBloquear={abrirModalBloquear}
-            onDesbloquear={abrirModalDesbloquear}
-          />
-        </div>
-      </main>
+      <div className="mb-4 sm:mb-6 animate-fade-in delay-1">
+        <FiltrosUsuarios filtros={filtros} onChange={setFiltros} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-warm-200 overflow-hidden animate-fade-in delay-2">
+        <TablaUsuarios
+          usuarios={usuarios}
+          loading={loading}
+          currentUserId={user?.id}
+          reenviandoEmail={reenviandoEmail}
+          onBloquear={abrirModalBloquear}
+          onDesbloquear={abrirModalDesbloquear}
+          onReenviar={handleReenviar}
+        />
+      </div>
 
       {tipoAccion && usuarioAccion && (
         <ModalConfirmacion
@@ -169,6 +182,6 @@ export default function AdminUsuarios() {
           onCerrar={() => setMostrarInvitacion(false)}
         />
       )}
-    </div>
+    </AdminShell>
   )
 }

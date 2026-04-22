@@ -7,6 +7,8 @@ import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
+import EmailVerified from './pages/EmailVerified'
+import Activar from './pages/Activar'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminUsuarios from './pages/admin/Usuarios'
 import ResidenteDashboard from './pages/ResidenteDashboard'
@@ -84,6 +86,8 @@ export default function App() {
             <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/email-verified" element={<EmailVerified />} />
+            <Route path="/activar" element={<Activar />} />
           </Route>
 
           {/* Protected dashboard routes */}

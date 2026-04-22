@@ -10,6 +10,24 @@ export type InvitacionPayload = {
   empresa_tercero?: string
 }
 
+async function extractErrorMessage(
+  data: { error?: string; success?: boolean } | null,
+  fnError: Error | null,
+  fallback: string,
+): Promise<string> {
+  let mensaje = data?.error ?? fnError?.message ?? fallback
+  const response = (fnError as { context?: Response } | null)?.context
+  if (response && typeof response.json === 'function') {
+    try {
+      const body = await response.json()
+      if (body?.error) mensaje = body.error
+    } catch {
+      // ignore
+    }
+  }
+  return mensaje
+}
+
 export function useInvitacion() {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,18 +37,33 @@ export function useInvitacion() {
     setError(null)
 
     const { data, error: fnError } = await supabase.functions.invoke('invitaciones', {
-      body: payload,
+      body: { ...payload, accion: 'crear' },
     })
 
     setCargando(false)
 
     if (fnError || !data?.success) {
-      setError(fnError?.message ?? data?.error ?? 'Error al enviar invitación')
+      setError(await extractErrorMessage(data, fnError, 'Error al enviar invitación'))
       return false
     }
 
     return true
   }
 
-  return { enviarInvitacion, cargando, error }
+  async function reenviarInvitacion(email: string): Promise<{ ok: boolean; error?: string }> {
+    const { data, error: fnError } = await supabase.functions.invoke('invitaciones', {
+      body: { accion: 'reenviar', email },
+    })
+
+    if (fnError || !data?.success) {
+      return {
+        ok: false,
+        error: await extractErrorMessage(data, fnError, 'Error al reenviar invitación'),
+      }
+    }
+
+    return { ok: true }
+  }
+
+  return { enviarInvitacion, reenviarInvitacion, cargando, error }
 }

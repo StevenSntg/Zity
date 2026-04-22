@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: metadata,
-        emailRedirectTo: `${getSiteUrl()}/verify-email`,
+        emailRedirectTo: `${getSiteUrl()}/email-verified`,
       },
     })
     if (error) {

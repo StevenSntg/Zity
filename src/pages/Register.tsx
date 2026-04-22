@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useBlocker, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import type { SignUpMetadata } from '../types/database'
 import AuthLayout from '../components/AuthLayout'
@@ -59,6 +59,39 @@ export default function Register() {
     departamento: '',
     rol: 'residente',
   })
+
+  // Hay progreso a partir de que el usuario comenzó a escribir credenciales.
+  // Usamos esto para avisar antes de perder los datos al salir del formulario.
+  const hayProgreso =
+    !loading &&
+    (step1.email !== '' ||
+      step1.password !== '' ||
+      step1.confirmPassword !== '' ||
+      step === 2)
+
+  // Bloquea navegación interna (clicks en <Link>, botones Atrás del router, etc.)
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    return hayProgreso && currentLocation.pathname !== nextLocation.pathname
+  })
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      const confirmar = window.confirm('¿Deseas cancelar el registro? Se perderán los datos ingresados.')
+      if (confirmar) blocker.proceed()
+      else blocker.reset()
+    }
+  }, [blocker])
+
+  // Aviso del navegador al cerrar pestaña o recargar.
+  useEffect(() => {
+    if (!hayProgreso) return
+    function handler(e: BeforeUnloadEvent) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hayProgreso])
 
   function validateStep1(): Step1Errors {
     const errors: Step1Errors = {}
