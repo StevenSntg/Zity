@@ -32,17 +32,25 @@ export default function ResetPassword() {
 
     setLoading(true)
 
-    const { error: updateError } = await updatePassword(password)
+    // updatePassword puede quedar colgado en el cliente aunque el servidor ya
+    // rotó la contraseña (rotación de tokens tras el cambio). Le damos 4s y
+    // después redirigimos igual: el usuario tendrá que loguear con la nueva
+    // contraseña, lo cual ya valida que el cambio se aplicó.
+    const TIMEOUT_MS = 4000
+    const result = await Promise.race([
+      updatePassword(password),
+      new Promise<{ error: string | null }>(resolve =>
+        setTimeout(() => resolve({ error: null }), TIMEOUT_MS),
+      ),
+    ])
 
-    if (updateError) {
-      setError(updateError)
+    if (result.error) {
+      setError(result.error)
       setLoading(false)
       return
     }
 
-    // Tras updateUser Supabase rota los tokens y el cliente puede quedar en
-    // estado transitorio; disparamos el signOut sin esperarlo (fire-and-forget)
-    // para no bloquear el redirect si tarda o falla silenciosamente.
+    // Fire-and-forget: no esperamos el signOut para no volver a bloquear.
     void supabase.auth.signOut().catch(() => { /* noop */ })
 
     setLoading(false)

@@ -68,16 +68,22 @@ export default function Activar() {
 
     setLoading(true)
 
-    const { error: updateError } = await supabase.auth.updateUser({ password })
+    // updateUser puede quedar colgado en el cliente aunque el servidor ya aplicó
+    // el cambio. Timeout de 4s + redirect — el usuario confirma con login.
+    const TIMEOUT_MS = 4000
+    const result = await Promise.race([
+      supabase.auth.updateUser({ password }),
+      new Promise<{ error: null }>(resolve =>
+        setTimeout(() => resolve({ error: null }), TIMEOUT_MS),
+      ),
+    ])
 
-    if (updateError) {
-      setError(updateError.message)
+    if (result.error) {
+      setError(result.error.message)
       setLoading(false)
       return
     }
 
-    // Tras updateUser Supabase rota los tokens; disparamos el signOut sin
-    // esperarlo (fire-and-forget) para no bloquear el redirect.
     void supabase.auth.signOut().catch(() => { /* noop */ })
 
     setLoading(false)
