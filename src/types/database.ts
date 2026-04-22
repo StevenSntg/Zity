@@ -1,5 +1,6 @@
 export type Rol = 'residente' | 'admin' | 'tecnico'
 export type EstadoCuenta = 'pendiente' | 'activo' | 'bloqueado'
+export type EstadoInvitacion = 'pendiente' | 'aceptada' | 'expirada'
 export type EstadoSolicitud = 'pendiente' | 'asignada' | 'en_progreso' | 'resuelta' | 'cerrada'
 export type TipoSolicitud = 'mantenimiento' | 'reparacion' | 'queja' | 'sugerencia' | 'otro'
 export type CategoriaSolicitud = 'plomeria' | 'electricidad' | 'limpieza' | 'seguridad' | 'areas_comunes' | 'otro'
@@ -15,8 +16,23 @@ export type Profile = {
   piso: string
   departamento: string
   estado_cuenta: EstadoCuenta
+  empresa_tercero: string | null
   created_at: string
   updated_at: string
+}
+
+export type Invitacion = {
+  id: string
+  email: string
+  rol: Rol
+  nombre: string | null
+  piso: string | null
+  departamento: string | null
+  token: string
+  estado: EstadoInvitacion
+  creada_por: string | null
+  expires_at: string
+  created_at: string
 }
 
 export type Edificio = {
@@ -45,6 +61,10 @@ export type Solicitud = {
   categoria: CategoriaSolicitud
   descripcion: string
   estado: EstadoSolicitud
+  prioridad: string
+  imagen_url: string | null
+  piso: string | null
+  departamento: string | null
   created_at: string
   updated_at: string
 }
@@ -55,17 +75,18 @@ export type Asignacion = {
   tecnico_id: string
   asignado_por: string
   fecha_asignacion: string
-  notas: string
+  notas: string | null
+  empresa_tercero: string | null
 }
 
 export type HistorialEstado = {
   id: string
   solicitud_id: string
-  estado_anterior: string
+  estado_anterior: string | null
   estado_nuevo: string
-  cambiado_por: string
-  fecha: string
-  nota: string
+  cambiado_por: string | null
+  nota: string | null
+  created_at: string
 }
 
 export type Notificacion = {
@@ -82,10 +103,9 @@ export type AuditLog = {
   id: string
   usuario_id: string | null
   accion: string
-  entidad: string
+  entidad: string | null
   entidad_id: string | null
-  detalles: Record<string, unknown>
-  resultado: 'exitoso' | 'fallido'
+  resultado: string | null
   created_at: string
 }
 

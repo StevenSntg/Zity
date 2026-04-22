@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import type { SignUpMetadata } from '../types/database'
 import AuthLayout from '../components/AuthLayout'
 import PasswordInput from '../components/PasswordInput'
+import BarraProgreso from '../components/BarraProgreso'
 
 type Step1Data = {
   email: string
@@ -164,6 +165,9 @@ export default function Register() {
       title="Crear cuenta"
       subtitle={step === 1 ? 'Paso 1 de 2 — Credenciales de acceso' : 'Paso 2 de 2 — Datos personales y edificio'}
     >
+      {/* Barra de progreso */}
+      <BarraProgreso pasoActual={step} totalPasos={2} />
+
       {/* Step indicator */}
       <div className="step-indicator mb-8 animate-fade-in">
         <div className={`step-dot ${step === 1 ? 'active' : 'completed'}`}>

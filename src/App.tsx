@@ -8,6 +8,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
 import AdminDashboard from './pages/AdminDashboard'
+import AdminUsuarios from './pages/admin/Usuarios'
 import ResidenteDashboard from './pages/ResidenteDashboard'
 import TecnicoDashboard from './pages/TecnicoDashboard'
 import type { Rol } from './types/database'
@@ -89,6 +90,11 @@ export default function App() {
           <Route path="/admin" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/usuarios" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminUsuarios />
             </ProtectedRoute>
           } />
           <Route path="/residente" element={

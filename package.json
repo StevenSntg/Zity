@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage",
-    "seed": "node scripts/seed.js"
+    "seed": "node --env-file=.env scripts/seed.js",
+    "seed:clean": "node --env-file=.env scripts/seed.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
