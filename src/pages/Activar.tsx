@@ -76,10 +76,11 @@ export default function Activar() {
       return
     }
 
-    // Cerramos la sesión temporal del invite antes de redirigir, para forzar el
-    // inicio de sesión consciente con la nueva contraseña.
-    await supabase.auth.signOut()
+    // Tras updateUser Supabase rota los tokens; disparamos el signOut sin
+    // esperarlo (fire-and-forget) para no bloquear el redirect.
+    void supabase.auth.signOut().catch(() => { /* noop */ })
 
+    setLoading(false)
     navigate('/login', {
       state: { message: 'Cuenta activada exitosamente. Inicia sesión con tu nueva contraseña.' },
       replace: true,

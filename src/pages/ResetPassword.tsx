@@ -40,10 +40,12 @@ export default function ResetPassword() {
       return
     }
 
-    // Cerramos la sesión de recuperación antes de redirigir para que el login
-    // vuelva a pedir credenciales en lugar de saltar directo al dashboard.
-    await supabase.auth.signOut()
+    // Tras updateUser Supabase rota los tokens y el cliente puede quedar en
+    // estado transitorio; disparamos el signOut sin esperarlo (fire-and-forget)
+    // para no bloquear el redirect si tarda o falla silenciosamente.
+    void supabase.auth.signOut().catch(() => { /* noop */ })
 
+    setLoading(false)
     navigate('/login', {
       state: { message: 'Contraseña actualizada exitosamente. Inicia sesión con tu nueva contraseña.' },
       replace: true,

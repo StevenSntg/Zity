@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useBlocker, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import type { SignUpMetadata } from '../types/database'
 import AuthLayout from '../components/AuthLayout'
@@ -69,19 +69,6 @@ export default function Register() {
       step1.confirmPassword !== '' ||
       step === 2)
 
-  // Bloquea navegación interna (clicks en <Link>, botones Atrás del router, etc.)
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
-    return hayProgreso && currentLocation.pathname !== nextLocation.pathname
-  })
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      const confirmar = window.confirm('¿Deseas cancelar el registro? Se perderán los datos ingresados.')
-      if (confirmar) blocker.proceed()
-      else blocker.reset()
-    }
-  }, [blocker])
-
   // Aviso del navegador al cerrar pestaña o recargar.
   useEffect(() => {
     if (!hayProgreso) return
@@ -92,6 +79,15 @@ export default function Register() {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [hayProgreso])
+
+  // Intercepta click en "Inicia sesión" al pie del formulario para confirmar
+  // antes de perder los datos. useBlocker no es utilizable aquí porque la app
+  // monta <BrowserRouter> (no Data Router).
+  function confirmarSalida(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (!hayProgreso) return
+    const seguro = window.confirm('¿Deseas cancelar el registro? Se perderán los datos ingresados.')
+    if (!seguro) e.preventDefault()
+  }
 
   function validateStep1(): Step1Errors {
     const errors: Step1Errors = {}
@@ -468,7 +464,11 @@ export default function Register() {
       <div className="mt-8 pt-6 border-t border-warm-200 text-center animate-fade-in delay-6">
         <p className="text-sm text-warm-400">
           ¿Ya tienes cuenta?{' '}
-          <Link to="/login" className="text-primary-600 hover:text-primary-700 font-semibold transition-colors">
+          <Link
+            to="/login"
+            onClick={confirmarSalida}
+            className="text-primary-600 hover:text-primary-700 font-semibold transition-colors"
+          >
             Inicia sesión
           </Link>
         </p>
