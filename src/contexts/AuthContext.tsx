@@ -25,6 +25,15 @@ const AuthContext = createContext<AuthContextType | null>(null)
 
 const PROFILE_FETCH_TIMEOUT_MS = 6000
 
+// Base URL para los enlaces que Supabase incluye en correos (verificación, reset).
+// En producción se define VITE_SITE_URL=https://zity.site en las variables del hosting.
+// En desarrollo cae a window.location.origin (ej. http://localhost:5173).
+function getSiteUrl(): string {
+  const fromEnv = import.meta.env.VITE_SITE_URL as string | undefined
+  if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, '')
+  return window.location.origin
+}
+
 async function fetchProfileSafe(userId: string): Promise<Profile | null> {
   try {
     const queryPromise = supabase
@@ -160,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: metadata,
-        emailRedirectTo: `${window.location.origin}/verify-email`,
+        emailRedirectTo: `${getSiteUrl()}/verify-email`,
       },
     })
     if (error) {
@@ -178,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${getSiteUrl()}/reset-password`,
     })
     if (error) return { error: error.message }
     return { error: null }

@@ -59,7 +59,11 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    const redirectOrigin = req.headers.get('origin') ?? 'https://zity.app'
+    // SITE_URL tiene prioridad (configurado vía `supabase secrets set SITE_URL=https://zity.site`).
+    // Así las invitaciones siempre apuntan al dominio de producción, sin importar desde dónde
+    // el admin dispare la acción.
+    const siteUrl = Deno.env.get('SITE_URL') ?? 'https://zity.site'
+    const redirectOrigin = siteUrl.replace(/\/$/, '')
 
     // Supabase Auth crea el usuario pre-invitado y manda el email vía su SMTP integrado.
     // El link del email lleva al usuario a /activar donde establece su contraseña.
