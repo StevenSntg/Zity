@@ -84,7 +84,9 @@ export default function Activar() {
       return
     }
 
-    void supabase.auth.signOut().catch(() => { /* noop */ })
+    // Cierre local de sesión (limpia localStorage sin tocar servidor) — evita
+    // el race donde GuestRoute ve la sesión activa y salta al dashboard.
+    await supabase.auth.signOut({ scope: 'local' })
 
     setLoading(false)
     navigate('/login', {

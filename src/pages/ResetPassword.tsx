@@ -50,8 +50,12 @@ export default function ResetPassword() {
       return
     }
 
-    // Fire-and-forget: no esperamos el signOut para no volver a bloquear.
-    void supabase.auth.signOut().catch(() => { /* noop */ })
+    // scope:'local' cierra la sesión del navegador SIN llamar al endpoint de
+    // logout del servidor — operación inmediata que limpia localStorage.
+    // Con un signOut global (default) hay una ventana en la que el redirect a
+    // /login ve la sesión aún activa y GuestRoute salta al dashboard, causando
+    // el flash "dashboard → login". Local evita ese race por completo.
+    await supabase.auth.signOut({ scope: 'local' })
 
     setLoading(false)
     navigate('/login', {
