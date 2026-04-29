@@ -1,19 +1,22 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import AdminShell from '../components/admin/AdminShell'
+import { supabase } from '../lib/supabase'
+
+type StatKey = 'pendientes' | 'en_progreso' | 'resueltas_mes'
 
 type StatCard = {
+  key: StatKey
   label: string
-  value: string
-  trend?: string
   accent: 'primary' | 'accent' | 'success'
   icon: React.ReactNode
 }
 
 const STAT_CARDS: StatCard[] = [
   {
+    key: 'pendientes',
     label: 'Solicitudes pendientes',
-    value: '—',
     accent: 'accent',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -22,8 +25,8 @@ const STAT_CARDS: StatCard[] = [
     ),
   },
   {
+    key: 'en_progreso',
     label: 'En progreso',
-    value: '—',
     accent: 'primary',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -32,8 +35,8 @@ const STAT_CARDS: StatCard[] = [
     ),
   },
   {
+    key: 'resueltas_mes',
     label: 'Resueltas este mes',
-    value: '—',
     accent: 'success',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -51,6 +54,43 @@ const ACCENT_STYLES: Record<StatCard['accent'], string> = {
 
 export default function AdminDashboard() {
   const { profile } = useAuth()
+  const [stats, setStats] = useState<Record<StatKey, number | null>>({
+    pendientes: null,
+    en_progreso: null,
+    resueltas_mes: null,
+  })
+
+  useEffect(() => {
+    let cancelado = false
+    async function cargar() {
+      // Tres queries `head: true` con `count: 'exact'` traen sólo el COUNT,
+      // sin filas. Las disparamos en paralelo.
+      const inicioMes = new Date()
+      inicioMes.setDate(1)
+      inicioMes.setHours(0, 0, 0, 0)
+
+      const [pendientes, enProgreso, resueltasMes] = await Promise.all([
+        supabase.from('solicitudes').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente'),
+        supabase.from('solicitudes').select('id', { count: 'exact', head: true }).eq('estado', 'en_progreso'),
+        supabase
+          .from('solicitudes')
+          .select('id', { count: 'exact', head: true })
+          .eq('estado', 'resuelta')
+          .gte('updated_at', inicioMes.toISOString()),
+      ])
+
+      if (cancelado) return
+      setStats({
+        pendientes: pendientes.count ?? 0,
+        en_progreso: enProgreso.count ?? 0,
+        resueltas_mes: resueltasMes.count ?? 0,
+      })
+    }
+    cargar()
+    return () => {
+      cancelado = true
+    }
+  }, [])
 
   return (
     <AdminShell
@@ -59,23 +99,29 @@ export default function AdminDashboard() {
     >
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 animate-fade-in delay-1">
-        {STAT_CARDS.map(card => (
-          <div
-            key={card.label}
-            className="bg-white rounded-xl border border-warm-200 p-5 sm:p-6"
-          >
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <p className="text-sm text-warm-400 leading-tight">{card.label}</p>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${ACCENT_STYLES[card.accent]}`}>
-                {card.icon}
+        {STAT_CARDS.map(card => {
+          const valor = stats[card.key]
+          return (
+            <div key={card.label} className="bg-white rounded-xl border border-warm-200 p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <p className="text-sm text-warm-400 leading-tight">{card.label}</p>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${ACCENT_STYLES[card.accent]}`}>
+                  {card.icon}
+                </div>
               </div>
+              <p className="font-display text-3xl font-semibold text-primary-900 leading-none">
+                {valor === null ? '—' : valor}
+              </p>
+              <p className="mt-1.5 text-xs text-warm-400">
+                {valor === null
+                  ? 'Cargando…'
+                  : card.key === 'resueltas_mes'
+                    ? 'Mes actual'
+                    : 'Hoy'}
+              </p>
             </div>
-            <p className="font-display text-3xl font-semibold text-primary-900 leading-none">
-              {card.value}
-            </p>
-            <p className="mt-1.5 text-xs text-warm-400">Datos disponibles en Sprint 3</p>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Quick actions */}
@@ -106,21 +152,27 @@ export default function AdminDashboard() {
             </div>
           </Link>
 
-          <div className="bg-white rounded-xl border border-warm-200 p-5 sm:p-6 opacity-60 cursor-not-allowed">
+          <Link
+            to="/admin/solicitudes"
+            className="group bg-white rounded-xl border border-warm-200 p-5 sm:p-6 hover:border-primary-300 hover:shadow-sm transition-all cursor-pointer"
+          >
             <div className="flex items-start gap-3 sm:gap-4">
-              <div className="w-11 h-11 rounded-lg bg-warm-100 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-warm-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <div className="w-11 h-11 rounded-lg bg-accent-50 flex items-center justify-center group-hover:bg-accent-100 transition-colors shrink-0">
+                <svg className="w-5 h-5 text-accent-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="font-medium text-primary-900 mb-1">Solicitudes</h3>
+                <h3 className="font-medium text-primary-900 mb-1">Solicitudes de mantenimiento</h3>
                 <p className="text-sm text-warm-400 leading-relaxed">
-                  Próximamente · disponible en Sprint 3.
+                  Revisa solicitudes pendientes con foto y detalles del residente.
                 </p>
               </div>
+              <svg className="w-5 h-5 text-warm-400 group-hover:text-primary-600 transition-colors shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </AdminShell>

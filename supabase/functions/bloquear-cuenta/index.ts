@@ -70,7 +70,19 @@ Deno.serve(async (req: Request) => {
     if (updateError) throw new Error(updateError.message)
 
     if (accion === "bloquear") {
+      // ban_duration: impide que el usuario obtenga nuevas sesiones (login) o
+      // refresque su sesión activa una vez expire el access token (≤1h).
       await supabaseAdmin.auth.admin.updateUserById(usuario_id, { ban_duration: "87600h" })
+
+      // Invalidar sesión activa inmediata: borramos las filas en auth.sessions
+      // del usuario. Esto revoca todos los refresh tokens vinculados (FK ON
+      // DELETE CASCADE en auth.refresh_tokens). El cliente recibirá 401 en su
+      // próxima llamada a Supabase y supabase-js disparará SIGNED_OUT,
+      // mandándolo al login en menos de un segundo si está activo.
+      // El access token actual sigue valiendo hasta su `exp`, pero como
+      // cualquier consulta posterior fallará por ban_duration, el efecto es
+      // equivalente al cierre de sesión.
+      await supabaseAdmin.rpc("revoke_user_sessions", { target_user_id: usuario_id })
     } else if (accion === "desbloquear") {
       await supabaseAdmin.auth.admin.updateUserById(usuario_id, { ban_duration: "none" })
     }

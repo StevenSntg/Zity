@@ -55,6 +55,7 @@ export type Unidad = {
 
 export type Solicitud = {
   id: string
+  codigo: string | null
   residente_id: string
   unidad_id: string | null
   tipo: TipoSolicitud

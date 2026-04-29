@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import TablaUsuarios from '../../components/admin/TablaUsuarios'
-import type { Profile } from '../../types/database'
+import type { UsuarioConInvitacion } from '../../hooks/useUsuarios'
 
-const mockUsuarios: Profile[] = [
+const mockUsuarios: UsuarioConInvitacion[] = [
   {
     id: '1',
     email: 'carlos@test.com',
@@ -17,6 +17,7 @@ const mockUsuarios: Profile[] = [
     empresa_tercero: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    fecha_invitacion: null,
   },
   {
     id: '2',
@@ -31,6 +32,7 @@ const mockUsuarios: Profile[] = [
     empresa_tercero: 'TecnoEdif SAC',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    fecha_invitacion: null,
   },
 ]
 

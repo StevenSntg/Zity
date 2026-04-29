@@ -17,6 +17,7 @@ const EmailVerified = lazy(() => import('./pages/EmailVerified'))
 const Activar = lazy(() => import('./pages/Activar'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminUsuarios = lazy(() => import('./pages/admin/Usuarios'))
+const AdminSolicitudes = lazy(() => import('./pages/admin/Solicitudes'))
 const ResidenteDashboard = lazy(() => import('./pages/ResidenteDashboard'))
 const TecnicoDashboard = lazy(() => import('./pages/TecnicoDashboard'))
 
@@ -68,6 +69,11 @@ export default function App() {
             <Route path="/admin/usuarios" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminUsuarios />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/solicitudes" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminSolicitudes />
               </ProtectedRoute>
             } />
             <Route path="/residente" element={

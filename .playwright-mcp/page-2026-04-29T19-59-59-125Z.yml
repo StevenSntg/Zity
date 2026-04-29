@@ -1,0 +1,116 @@
+- generic [ref=e70]:
+  - banner [ref=e71]:
+    - generic [ref=e72]:
+      - generic [ref=e73]:
+        - img "Zity" [ref=e74]
+        - generic [ref=e75]: Admin
+      - button "Abrir menú" [ref=e76] [cursor=pointer]:
+        - img [ref=e77]
+  - generic [ref=e80]:
+    - generic [ref=e82]:
+      - heading "Solicitudes" [level=1] [ref=e83]
+      - paragraph [ref=e84]: 4 solicitudes encontradas
+    - generic [ref=e87]:
+      - generic [ref=e88]:
+        - generic:
+          - img
+        - combobox "Filtrar por estado" [ref=e89] [cursor=pointer]:
+          - option "Todos los estados" [selected]
+          - option "Pendiente"
+          - option "Asignada"
+          - option "En progreso"
+          - option "Resuelta"
+          - option "Cerrada"
+        - generic:
+          - img
+      - generic [ref=e90]:
+        - generic:
+          - img
+        - combobox "Filtrar por tipo" [ref=e91] [cursor=pointer]:
+          - option "Todos los tipos" [selected]
+          - option "Mantenimiento"
+          - option "Reparación"
+          - option "Queja"
+          - option "Sugerencia"
+          - option "Otro"
+        - generic:
+          - img
+    - table [ref=e94]:
+      - rowgroup [ref=e95]:
+        - row "ID Residente Tipo / Categoría Prioridad Estado Fecha Foto" [ref=e96]:
+          - columnheader "ID" [ref=e97]
+          - columnheader "Residente" [ref=e98]
+          - columnheader "Tipo / Categoría" [ref=e99]
+          - columnheader "Prioridad" [ref=e100]
+          - columnheader "Estado" [ref=e101]
+          - columnheader "Fecha" [ref=e102]
+          - columnheader "Foto" [ref=e103]
+      - rowgroup [ref=e104]:
+        - row "ZIT-004 LV Laura Vega Piso 4 — B Reparación Electricidad urgente Pendiente este minuto" [ref=e105] [cursor=pointer]:
+          - cell "ZIT-004" [ref=e106]
+          - cell "LV Laura Vega Piso 4 — B" [ref=e107]:
+            - generic [ref=e108]:
+              - generic [ref=e109]: LV
+              - generic [ref=e110]:
+                - paragraph [ref=e111]: Laura Vega
+                - paragraph [ref=e112]: Piso 4 — B
+          - cell "Reparación Electricidad" [ref=e113]:
+            - paragraph [ref=e114]: Reparación
+            - paragraph [ref=e115]: Electricidad
+          - cell "urgente" [ref=e116]:
+            - generic [ref=e119]: urgente
+          - cell "Pendiente" [ref=e120]:
+            - generic [ref=e121]: Pendiente
+          - cell "este minuto" [ref=e122]
+          - cell [ref=e123]
+        - row "ZIT-003 JR Julia Romero Piso 5 — C Queja Limpieza normal Pendiente hace 3 minutos" [ref=e124] [cursor=pointer]:
+          - cell "ZIT-003" [ref=e125]
+          - cell "JR Julia Romero Piso 5 — C" [ref=e126]:
+            - generic [ref=e127]:
+              - generic [ref=e128]: JR
+              - generic [ref=e129]:
+                - paragraph [ref=e130]: Julia Romero
+                - paragraph [ref=e131]: Piso 5 — C
+          - cell "Queja Limpieza" [ref=e132]:
+            - paragraph [ref=e133]: Queja
+            - paragraph [ref=e134]: Limpieza
+          - cell "normal" [ref=e135]:
+            - generic [ref=e138]: normal
+          - cell "Pendiente" [ref=e139]:
+            - generic [ref=e140]: Pendiente
+          - cell "hace 3 minutos" [ref=e141]
+          - cell [ref=e142]
+        - row "ZIT-002 PR Pedro Ramos Piso 2 — A Reparación Electricidad urgente Pendiente hace 3 minutos" [ref=e143] [cursor=pointer]:
+          - cell "ZIT-002" [ref=e144]
+          - cell "PR Pedro Ramos Piso 2 — A" [ref=e145]:
+            - generic [ref=e146]:
+              - generic [ref=e147]: PR
+              - generic [ref=e148]:
+                - paragraph [ref=e149]: Pedro Ramos
+                - paragraph [ref=e150]: Piso 2 — A
+          - cell "Reparación Electricidad" [ref=e151]:
+            - paragraph [ref=e152]: Reparación
+            - paragraph [ref=e153]: Electricidad
+          - cell "urgente" [ref=e154]:
+            - generic [ref=e157]: urgente
+          - cell "Pendiente" [ref=e158]:
+            - generic [ref=e159]: Pendiente
+          - cell "hace 3 minutos" [ref=e160]
+          - cell [ref=e161]
+        - row "ZIT-001 LV Laura Vega Piso 4 — B Mantenimiento Plomería urgente Pendiente hace 3 minutos" [ref=e162] [cursor=pointer]:
+          - cell "ZIT-001" [ref=e163]
+          - cell "LV Laura Vega Piso 4 — B" [ref=e164]:
+            - generic [ref=e165]:
+              - generic [ref=e166]: LV
+              - generic [ref=e167]:
+                - paragraph [ref=e168]: Laura Vega
+                - paragraph [ref=e169]: Piso 4 — B
+          - cell "Mantenimiento Plomería" [ref=e170]:
+            - paragraph [ref=e171]: Mantenimiento
+            - paragraph [ref=e172]: Plomería
+          - cell "urgente" [ref=e173]:
+            - generic [ref=e176]: urgente
+          - cell "Pendiente" [ref=e177]:
+            - generic [ref=e178]: Pendiente
+          - cell "hace 3 minutos" [ref=e179]
+          - cell [ref=e180]

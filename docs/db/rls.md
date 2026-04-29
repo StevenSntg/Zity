@@ -98,6 +98,18 @@
 
 - `on_auth_user_verified` y la función `handle_user_verified()`: activaban `estado_cuenta='activo'` automáticamente al confirmar el email, contradiciendo el flujo donde el admin debe aprobar la cuenta. Sin el trigger, la cuenta queda en `pendiente` hasta que el admin invoque la ruta correspondiente.
 
+## Storage policies (Sprint 3 · ADR-005)
+
+Bucket `solicitudes-fotos` (privado, JPEG/PNG, 5 MB máx.):
+
+| Policy | Cmd | Roles | Filtro |
+|---|---|---|---|
+| `solicitudes_fotos_insert_propio` | INSERT | authenticated | `bucket_id='solicitudes-fotos' AND (storage.foldername(name))[1] = (select auth.uid()::text)` |
+| `solicitudes_fotos_select_authenticated` | SELECT | authenticated | `bucket_id='solicitudes-fotos'` (control efectivo vía URLs firmadas + RLS de `solicitudes`) |
+| `solicitudes_fotos_delete_admin_o_dueno` | DELETE | authenticated | `bucket_id='solicitudes-fotos' AND (admin OR (storage.foldername(name))[1] = auth.uid()::text)` |
+
+**Nomenclatura:** `{residente_id}/{solicitud_id}/{timestamp}_{nombre_seguro}` — el primer segmento es lo que valida la policy de INSERT contra `auth.uid()`. Documentación operativa completa en [`/docs/storage.md`](../storage.md).
+
 ## Verificación
 
 - Advisors de Supabase corridos después de la auditoría: **0 lints de seguridad de RLS**, **0 lints `multiple_permissive_policies`**, **0 lints `unindexed_foreign_keys`**.

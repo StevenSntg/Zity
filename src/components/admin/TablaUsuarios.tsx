@@ -1,9 +1,10 @@
 import type { Profile } from '../../types/database'
+import type { UsuarioConInvitacion } from '../../hooks/useUsuarios'
 import { iniciales, tiempoTranscurrido } from '../../lib/format'
 import BadgeEstado from './BadgeEstado'
 
 type Props = {
-  usuarios: Profile[]
+  usuarios: UsuarioConInvitacion[]
   loading: boolean
   currentUserId?: string
   reenviandoEmail?: string | null
@@ -123,7 +124,9 @@ export default function TablaUsuarios({
                   <p className="mt-1 text-xs text-warm-400">{usuario.empresa_tercero}</p>
                 )}
                 <p className="mt-1.5 text-[0.6875rem] text-warm-400">
-                  Registro {tiempoTranscurrido(usuario.created_at)}
+                  {usuario.estado_cuenta === 'pendiente' && usuario.fecha_invitacion
+                    ? `Invitado ${tiempoTranscurrido(usuario.fecha_invitacion)}`
+                    : `Registro ${tiempoTranscurrido(usuario.created_at)}`}
                 </p>
               </div>
             </div>
@@ -188,7 +191,9 @@ export default function TablaUsuarios({
                     <BadgeEstado estado={usuario.estado_cuenta} />
                     {usuario.estado_cuenta === 'pendiente' && (
                       <span className="text-xs text-warm-400">
-                        {tiempoTranscurrido(usuario.created_at)}
+                        {usuario.fecha_invitacion
+                          ? `Invitado ${tiempoTranscurrido(usuario.fecha_invitacion)}`
+                          : tiempoTranscurrido(usuario.created_at)}
                       </span>
                     )}
                   </div>

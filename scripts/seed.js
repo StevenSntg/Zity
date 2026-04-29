@@ -70,20 +70,32 @@ async function seedUsers() {
   console.log('Insertando usuarios...')
   const createdIds = {}
 
-  for (const user of USERS) {
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: user.email,
-      password: user.password,
-      email_confirm: true,
-      user_metadata: user.metadata,
-    })
+  // Lookup previo: si los usuarios ya existen (seed corrió antes sin --clean),
+  // necesitamos recuperar sus IDs para poder seedear el resto (solicitudes,
+  // invitaciones). createUser retorna error duplicado pero no el ID existente.
+  const { data: authUsersAll } = await supabase.auth.admin.listUsers()
+  const idPorEmail = new Map()
+  for (const u of authUsersAll?.users ?? []) {
+    if (u.email) idPorEmail.set(u.email, u.id)
+  }
 
-    if (error) {
-      console.error(`Error creando ${user.email}:`, error.message)
-      continue
+  for (const user of USERS) {
+    let userId = idPorEmail.get(user.email)
+
+    if (!userId) {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: user.email,
+        password: user.password,
+        email_confirm: true,
+        user_metadata: user.metadata,
+      })
+      if (error) {
+        console.error(`Error creando ${user.email}:`, error.message)
+        continue
+      }
+      userId = data.user.id
     }
 
-    const userId = data.user.id
     createdIds[user.email] = userId
 
     const profileData = {
@@ -135,6 +147,79 @@ async function seedInvitacion(adminId) {
   }
 }
 
+// Seeds 3 solicitudes demo con imágenes externas de picsum.photos. Por decisión
+// del Sprint 3 (Retro · Acción 2: estrategia de seed) NO subimos archivos
+// reales al bucket — guardamos directamente la URL externa en `imagen_url`.
+// La UI sabe diferenciar paths del bucket de URLs absolutas y muestra ambas
+// (las firmadas se generan sólo cuando el path no comienza con http).
+async function seedSolicitudes(ids) {
+  console.log('Insertando solicitudes de mantenimiento demo...')
+  const lauraId = ids['laura@zity-demo.com']
+  const pedroId = ids['pedro@zity-demo.com']
+  const juliaId = ids['julia@zity-demo.com']
+  if (!lauraId || !pedroId || !juliaId) {
+    console.warn('  Faltan IDs de residentes; se omite seed de solicitudes')
+    return
+  }
+
+  const SOLICITUDES_DEMO = [
+    {
+      residente_id: lauraId,
+      tipo: 'mantenimiento',
+      categoria: 'plomeria',
+      descripcion: 'Gotera en el baño principal, gotea sobre el piso. Inicia hace 2 días al usar la ducha.',
+      prioridad: 'urgente',
+      piso: '4',
+      departamento: 'B',
+      imagen_url: 'https://picsum.photos/seed/zity-001/800/600',
+    },
+    {
+      residente_id: pedroId,
+      tipo: 'reparacion',
+      categoria: 'electricidad',
+      descripcion: 'El interruptor de la sala hace chispa al apagarlo. Sólo ocurre con la luz central.',
+      prioridad: 'urgente',
+      piso: '2',
+      departamento: 'A',
+      imagen_url: 'https://picsum.photos/seed/zity-002/800/600',
+    },
+    {
+      residente_id: juliaId,
+      tipo: 'queja',
+      categoria: 'limpieza',
+      descripcion: 'El pasillo del piso 5 lleva 4 días sin barrer. Hay polvo acumulado en las esquinas.',
+      prioridad: 'normal',
+      piso: '5',
+      departamento: 'C',
+      imagen_url: 'https://picsum.photos/seed/zity-003/800/600',
+    },
+  ]
+
+  for (const s of SOLICITUDES_DEMO) {
+    // Idempotencia: si ya existe una solicitud demo de ese residente con la
+    // misma descripción, no la duplicamos. Esto permite ejecutar `npm run seed`
+    // varias veces sin reset y mantener un set estable de datos demo.
+    const { data: existente } = await supabase
+      .from('solicitudes')
+      .select('id, codigo')
+      .eq('residente_id', s.residente_id)
+      .eq('descripcion', s.descripcion)
+      .maybeSingle()
+
+    if (existente) {
+      console.log(`  · Solicitud ${existente.codigo} ya existe, se omite`)
+      continue
+    }
+
+    const { error } = await supabase.from('solicitudes').insert(s)
+    if (error) {
+      console.error(`  Error insertando solicitud para ${s.residente_id}:`, error.message)
+    } else {
+      console.log(`  ✓ Solicitud ${s.tipo}/${s.categoria} (${s.prioridad}) para ${s.residente_id.slice(0, 8)}…`)
+    }
+  }
+}
+
 async function main() {
   // `--clean` borra los datos demo antes de insertar (uso recomendado en
   // staging después de pruebas manuales). Sin la bandera el seed es
@@ -145,6 +230,7 @@ async function main() {
   const ids = await seedUsers()
   const adminId = ids['carlos@zity-demo.com']
   if (adminId) await seedInvitacion(adminId)
+  await seedSolicitudes(ids)
   console.log('\n✅ Seed completado.')
 }
 

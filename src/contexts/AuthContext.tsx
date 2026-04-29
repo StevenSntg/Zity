@@ -134,10 +134,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        // TOKEN_REFRESHED con el mismo usuario: solo actualizamos session/user
-        // sin volver a tocar la red para el profile. Es el camino crítico para
-        // no kickear al login si la query del profile coincide con un timeout.
-        if (event === 'TOKEN_REFRESHED' && profileUserIdRef.current === session.user.id) {
+        // Camino rápido: cualquier evento (TOKEN_REFRESHED, SIGNED_IN re-emitido,
+        // INITIAL_SESSION en otra pestaña…) para el mismo usuario que ya
+        // tenemos cargado. Solo actualizamos session/user sin re-pegar la red.
+        // Sin esto, un fetch lento o un blip de red dejaría profile=null y
+        // ProtectedRoute mandaría al usuario al login sin razón real.
+        if (profileUserIdRef.current === session.user.id) {
           setState(prev => ({
             ...prev,
             user: session.user,
@@ -147,17 +149,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        // INITIAL_SESSION, SIGNED_IN, USER_UPDATED, o TOKEN_REFRESHED de otro usuario.
+        // INITIAL_SESSION, SIGNED_IN, USER_UPDATED de un usuario nuevo (o
+        // recuperación de la primera carga). Aquí sí necesitamos el profile.
         const profile = await fetchProfileSafe(session.user.id)
         if (!mountedRef.current) return
-        profileUserIdRef.current = session.user.id
-        setState({
-          user: session.user,
-          profile,
-          session,
-          loading: false,
-          isRecovery: false,
+
+        // Si el fetch falla pero teníamos un profile válido del mismo usuario,
+        // mantenemos el anterior en lugar de tirar al login. Sólo un evento
+        // SIGNED_OUT explícito o un cambio real de usuario debe limpiar el
+        // profile.
+        setState(prev => {
+          if (!profile && prev.profile && prev.profile.id === session.user.id) {
+            return { ...prev, user: session.user, session, loading: false, isRecovery: false }
+          }
+          return {
+            user: session.user,
+            profile,
+            session,
+            loading: false,
+            isRecovery: false,
+          }
         })
+
+        if (profile) profileUserIdRef.current = session.user.id
       }
     )
 
