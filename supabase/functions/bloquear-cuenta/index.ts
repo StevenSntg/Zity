@@ -1,119 +1,55 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { createClient } from "jsr:@supabase/supabase-js@2"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { corsHeaders, jsonResponse, requireAdmin } from "../_shared/auth.ts"
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders(req) })
   }
 
   try {
-    // verify_jwt:false en el deploy: validamos manualmente acá.
-    const authHeader = req.headers.get('authorization') ?? ''
-    const token = authHeader.replace(/^Bearer\s+/i, '')
+    const auth = await requireAdmin(req)
+    if (auth instanceof Response) return auth
+    const { callerUserId, supabaseAdmin } = auth
 
-    let callerUserId: string | null = null
-    try {
-      const parts = token.split('.')
-      if (parts.length === 3) {
-        const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-        const pad = payloadB64.length % 4
-        const padded = pad ? payloadB64 + '='.repeat(4 - pad) : payloadB64
-        const payload = JSON.parse(atob(padded)) as { sub?: string; role?: string }
-        if (payload.role === 'authenticated' && payload.sub) {
-          callerUserId = payload.sub
-        }
-      }
-    } catch {
-      callerUserId = null
-    }
-
-    if (!callerUserId) {
-      return new Response(JSON.stringify({ error: 'No autorizado' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
-    }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-
-    const { data: callerProfile } = await supabaseAdmin
-      .from('usuarios')
-      .select('rol')
-      .eq('id', callerUserId)
-      .single()
-
-    if (callerProfile?.rol !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Solo admins pueden realizar esta acción' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 403,
-      })
-    }
-
-    const { usuario_id, accion } = await req.json() as {
+    const { usuario_id, accion } = (await req.json()) as {
       usuario_id: string
-      accion: 'bloquear' | 'desbloquear'
+      accion: "bloquear" | "desbloquear"
     }
 
-    if (!usuario_id || !['bloquear', 'desbloquear'].includes(accion)) {
-      return new Response(JSON.stringify({ error: 'Parámetros inválidos' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+    if (!usuario_id || !["bloquear", "desbloquear"].includes(accion)) {
+      return jsonResponse(req, { error: "Parámetros inválidos" }, 400)
     }
 
     // Un admin no puede bloquearse a sí mismo (quedaría sin acceso al panel).
-    if (accion === 'bloquear' && callerUserId === usuario_id) {
-      return new Response(JSON.stringify({ error: 'No puedes bloquear tu propia cuenta' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+    if (accion === "bloquear" && callerUserId === usuario_id) {
+      return jsonResponse(req, { error: "No puedes bloquear tu propia cuenta" }, 400)
     }
 
-    const nuevoEstado = accion === 'bloquear' ? 'bloqueado' : 'activo'
+    const nuevoEstado = accion === "bloquear" ? "bloqueado" : "activo"
 
     const { error: updateError } = await supabaseAdmin
-      .from('usuarios')
+      .from("usuarios")
       .update({ estado_cuenta: nuevoEstado })
-      .eq('id', usuario_id)
+      .eq("id", usuario_id)
 
     if (updateError) throw new Error(updateError.message)
 
-    if (accion === 'bloquear') {
-      await supabaseAdmin.auth.admin.updateUserById(usuario_id, {
-        ban_duration: '87600h',
-      })
+    if (accion === "bloquear") {
+      await supabaseAdmin.auth.admin.updateUserById(usuario_id, { ban_duration: "87600h" })
     } else {
-      await supabaseAdmin.auth.admin.updateUserById(usuario_id, {
-        ban_duration: 'none',
-      })
+      await supabaseAdmin.auth.admin.updateUserById(usuario_id, { ban_duration: "none" })
     }
 
-    await supabaseAdmin.from('audit_log').insert({
+    await supabaseAdmin.from("audit_log").insert({
       usuario_id: callerUserId,
-      accion: accion === 'bloquear' ? 'bloquear_cuenta' : 'desbloquear_cuenta',
-      entidad: 'usuarios',
+      accion: accion === "bloquear" ? "bloquear_cuenta" : "desbloquear_cuenta",
+      entidad: "usuarios",
       entidad_id: usuario_id,
-      resultado: 'exitoso',
+      resultado: "exitoso",
     })
 
-    return new Response(JSON.stringify({ success: true, estado: nuevoEstado }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    })
+    return jsonResponse(req, { success: true, estado: nuevoEstado })
   } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    return jsonResponse(req, { error: (error as Error).message }, 500)
   }
 })

@@ -1,22 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../types/database'
 import type { FiltrosState } from '../components/admin/FiltrosUsuarios'
 
 const QUERY_TIMEOUT_MS = 8000
-
-async function fetchUsuariosQuery(filtros: FiltrosState, signal: AbortSignal) {
-  let query = supabase
-    .from('usuarios')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .abortSignal(signal)
-
-  if (filtros.rol) query = query.eq('rol', filtros.rol)
-  if (filtros.estado) query = query.eq('estado_cuenta', filtros.estado)
-
-  return query
-}
+const USUARIOS_COLUMNS = 'id, email, nombre, apellido, telefono, rol, piso, departamento, estado_cuenta, empresa_tercero, created_at, updated_at'
 
 export function useUsuarios(filtros: FiltrosState) {
   const { rol, estado } = filtros
@@ -24,51 +12,57 @@ export function useUsuarios(filtros: FiltrosState) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // El controller activo se guarda en una ref para que `refetch` pueda cancelar
+  // un fetch en vuelo del useEffect (o uno previo de refetch) antes de iniciar
+  // el nuevo. Sin esto, dos fetchs concurrentes con resultados distintos podían
+  // dejar datos stale (el más lento ganaba).
+  const controllerRef = useRef<AbortController | null>(null)
+
   const fetchUsuarios = useCallback(async () => {
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS)
+
     setLoading(true)
     setError(null)
 
     try {
-      const signal = AbortSignal.timeout(QUERY_TIMEOUT_MS)
-      const { data, error: fetchError } = await fetchUsuariosQuery({ rol, estado }, signal)
+      let query = supabase
+        .from('usuarios')
+        .select(USUARIOS_COLUMNS)
+        .order('created_at', { ascending: false })
+        .abortSignal(controller.signal)
+
+      if (rol) query = query.eq('rol', rol)
+      if (estado) query = query.eq('estado_cuenta', estado)
+
+      const { data, error: fetchError } = await query
+
+      if (controller.signal.aborted) return
 
       if (fetchError) setError(fetchError.message)
       else setUsuarios((data ?? []) as Profile[])
     } catch (err) {
-      setError((err as Error).message || 'Error al cargar usuarios')
+      if (!controller.signal.aborted) {
+        setError((err as Error).message || 'Error al cargar usuarios')
+      }
     } finally {
-      setLoading(false)
+      clearTimeout(timeoutId)
+      if (controllerRef.current === controller) {
+        controllerRef.current = null
+        setLoading(false)
+      }
     }
   }, [rol, estado])
 
   useEffect(() => {
-    let cancelado = false
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS)
-
-    ;(async () => {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const { data, error: fetchError } = await fetchUsuariosQuery({ rol, estado }, controller.signal)
-        if (cancelado) return
-
-        if (fetchError) setError(fetchError.message)
-        else setUsuarios((data ?? []) as Profile[])
-      } catch (err) {
-        if (!cancelado) setError((err as Error).message || 'Error al cargar usuarios')
-      } finally {
-        if (!cancelado) setLoading(false)
-      }
-    })()
-
+    fetchUsuarios()
     return () => {
-      cancelado = true
-      clearTimeout(timeoutId)
-      controller.abort()
+      controllerRef.current?.abort()
+      controllerRef.current = null
     }
-  }, [rol, estado])
+  }, [fetchUsuarios])
 
   return { usuarios, loading, error, refetch: fetchUsuarios }
 }

@@ -4,8 +4,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import AuthLayout from '../components/AuthLayout'
 import PasswordInput from '../components/PasswordInput'
-
-const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d).{8,}$/
+import FieldError from '../components/FieldError'
+import { PASSWORD_REGEX } from '../lib/validators'
 
 export default function ResetPassword() {
   const navigate = useNavigate()
@@ -103,12 +103,7 @@ export default function ResetPassword() {
             required
           />
           {confirmPassword && password !== confirmPassword && (
-            <p className="mt-1.5 text-xs text-error flex items-center gap-1">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Las contraseñas no coinciden
-            </p>
+            <FieldError message="Las contraseñas no coinciden" />
           )}
         </div>
 

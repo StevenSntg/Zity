@@ -8,6 +8,7 @@ import ModalConfirmacion from '../../components/admin/ModalConfirmacion'
 import ModalInvitacion from '../../components/admin/ModalInvitacion'
 import AdminShell from '../../components/admin/AdminShell'
 import { supabase } from '../../lib/supabase'
+import { extractEdgeFunctionError } from '../../lib/errors'
 import type { Profile } from '../../types/database'
 
 export default function AdminUsuarios() {
@@ -55,19 +56,7 @@ export default function AdminUsuarios() {
     setTipoAccion(null)
 
     if (fnError || !data?.success) {
-      // FunctionsHttpError expone el Response original en .context; extraemos
-      // el mensaje real del body antes de caer al genérico "non-2xx".
-      let mensaje = data?.error ?? fnError?.message ?? 'Error al realizar la acción'
-      const response = (fnError as { context?: Response } | null)?.context
-      if (response && typeof response.json === 'function') {
-        try {
-          const body = await response.json()
-          if (body?.error) mensaje = body.error
-        } catch {
-          // El body no era JSON; nos quedamos con el mensaje genérico.
-        }
-      }
-      setErrorAccion(mensaje)
+      setErrorAccion(await extractEdgeFunctionError(data, fnError, 'Error al realizar la acción'))
       return
     }
 

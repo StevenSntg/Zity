@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { Profile, SignUpMetadata } from '../types/database'
@@ -24,6 +24,9 @@ type AuthContextType = AuthState & AuthActions
 const AuthContext = createContext<AuthContextType | null>(null)
 
 const PROFILE_FETCH_TIMEOUT_MS = 6000
+const PROFILE_COLUMNS = 'id, email, nombre, apellido, telefono, rol, piso, departamento, estado_cuenta, empresa_tercero, created_at, updated_at'
+
+const isDev = import.meta.env.DEV
 
 // Base URL para los enlaces que Supabase incluye en correos (verificación, reset).
 // En producción se define VITE_SITE_URL=https://zity.site en las variables del hosting.
@@ -38,7 +41,7 @@ async function fetchProfileSafe(userId: string): Promise<Profile | null> {
   try {
     const queryPromise = supabase
       .from('usuarios')
-      .select('*')
+      .select(PROFILE_COLUMNS)
       .eq('id', userId)
       .single()
 
@@ -52,12 +55,12 @@ async function fetchProfileSafe(userId: string): Promise<Profile | null> {
     const { data, error } = await Promise.race([queryPromise, timeoutPromise])
 
     if (error) {
-      console.warn('[Auth] fetchProfile error:', error.message)
+      if (isDev) console.warn('[Auth] fetchProfile error:', error.message)
       return null
     }
     return data as Profile
   } catch (err) {
-    console.warn('[Auth] fetchProfile failed:', (err as Error).message)
+    if (isDev) console.warn('[Auth] fetchProfile failed:', (err as Error).message)
     return null
   }
 }
@@ -75,12 +78,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     mountedRef.current = true
-    console.log('[Auth] Provider mounted, subscribing to auth changes')
 
     // Safety timeout: si en 10s no llegó ningún evento, forzar loading:false para evitar cuelgue
     const safetyTimeout = setTimeout(() => {
       if (!mountedRef.current) return
-      console.warn('[Auth] Safety timeout: no auth event received in 10s, forcing loading=false')
+      if (isDev) console.warn('[Auth] Safety timeout: no auth event received in 10s, forcing loading=false')
       setState(prev => (prev.loading ? { ...prev, loading: false } : prev))
     }, 10000)
 
@@ -88,10 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // eliminando la necesidad de un getSession + fetchProfile paralelo que podía quedarse colgado.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] event:', event, 'session:', session?.user?.email ?? 'null')
         if (!mountedRef.current) return
-        // NO cancelamos safetyTimeout aquí — es la garantía final de que loading pase a false
-        // incluso si algo raro pasa después de este punto.
 
         if (event === 'PASSWORD_RECOVERY') {
           setState(prev => ({
@@ -117,9 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED
         if (session?.user) {
-          console.log('[Auth] fetching profile for', session.user.id)
           const profile = await fetchProfileSafe(session.user.id)
-          console.log('[Auth] profile fetched:', profile ? 'OK' : 'NULL')
           if (!mountedRef.current) return
           setState({
             user: session.user,
@@ -142,7 +139,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => {
-      console.log('[Auth] Provider unmounting')
       mountedRef.current = false
       clearTimeout(safetyTimeout)
       subscription.unsubscribe()
@@ -200,11 +196,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null }
   }, [])
 
-  return (
-    <AuthContext.Provider value={{ ...state, signIn, signUp, signOut, resetPassword, updatePassword }}>
-      {children}
-    </AuthContext.Provider>
+  // Memoizado para que los consumidores que solo dependen de las acciones no
+  // re-rendericen cuando cambia el estado, y viceversa cuando se agreguen
+  // más consumidores en sprints siguientes.
+  const value = useMemo<AuthContextType>(
+    () => ({ ...state, signIn, signUp, signOut, resetPassword, updatePassword }),
+    [state, signIn, signUp, signOut, resetPassword, updatePassword],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

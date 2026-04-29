@@ -16,9 +16,10 @@ export default function BarraProgreso({ pasoActual, totalPasos }: Props) {
       </div>
       <div
         role="progressbar"
-        aria-valuenow={pasoActual}
-        aria-valuemin={1}
-        aria-valuemax={totalPasos}
+        aria-valuenow={porcentaje}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuetext={`Paso ${pasoActual} de ${totalPasos}`}
         className="h-1.5 bg-warm-200 rounded-full overflow-hidden"
       >
         <div

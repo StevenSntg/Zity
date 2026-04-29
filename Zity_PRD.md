@@ -6,9 +6,9 @@
 
 | Campo | Detalle |
 |---|---|
-| Versión | 1.2 — Sprint 1 en curso |
+| Versión | 1.3 — Sprint 3 cerrado (Semana 5) |
 | Estado | Borrador activo |
-| Stack | React 19 + Vite 8 + TailwindCSS 4 · Supabase (Postgres + Auth + Realtime) · Vercel · GitHub Actions · Vitest (E2E con Playwright planificado para Sprint 7) |
+| Stack | React 19 + Vite 8 + TailwindCSS 4 · Supabase (Postgres + Auth + Storage + Realtime) · Vercel · GitHub Actions · Vitest (E2E con Playwright planificado para Sprint 7) |
 | Product Owner | Alvarez Rocca Jaqueline |
 | Scrum Master | Meza Pelaez Carlos |
 | Developers | Cortez Zamora Leonardo Fabian · Gonza Morales Yoel Ronaldo · Santiago Flores Carlos Steven |
@@ -215,16 +215,17 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 
 | Tabla | Campos clave | Descripción |
 |---|---|---|
-| `profiles` | `id`, `email`, `nombre`, `apellido`, `telefono`, `rol`, `piso`, `departamento`, `estado_cuenta`, `created_at`, `updated_at` | Perfil de usuario vinculado a Supabase Auth. Rol: `residente \| admin \| tecnico`. Estado: `pendiente \| activo \| bloqueado`. |
+| `profiles` | `id`, `email`, `nombre`, `apellido`, `telefono`, `rol`, `piso`, `departamento`, `estado_cuenta`, `empresa_tercero`, `created_at`, `updated_at` | Perfil de usuario vinculado a Supabase Auth. Rol: `residente \| admin \| tecnico`. Estado: `pendiente \| activo \| bloqueado`. `empresa_tercero` (nullable) registra la empresa contratista del técnico externo. |
+| `invitaciones` | `id`, `email`, `rol`, `nombre`, `piso`, `departamento`, `token`, `estado`, `creada_por`, `expires_at`, `created_at` | Invitaciones enviadas por el admin. Estado: `pendiente \| aceptada \| expirada`. Token expira en 48 h. |
 | `edificios` | `id`, `nombre`, `direccion`, `pisos`, `unidades_por_piso`, `created_at` | Registro del edificio o condominio gestionado. |
 | `unidades` | `id`, `edificio_id`, `numero`, `piso`, `descripcion`, `created_at` | Unidades del condominio (4B, 3A, Sala común, etc.). |
-| `solicitudes` | `id`, `residente_id`, `unidad_id`, `tipo`, `categoria`, `descripcion`, `estado`, `created_at`, `updated_at` | Solicitud de mantenimiento. `unidad_id` nullable: si existe registro en `unidades` se usa el FK; si no, la ubicación se infiere de `piso`+`departamento` del perfil. Estado: `pendiente \| asignada \| en_progreso \| resuelta \| cerrada`. |
-| `asignaciones` | `id`, `solicitud_id`, `tecnico_id`, `asignado_por`, `fecha_asignacion`, `notas` | Registro de qué técnico atiende cada solicitud y quién asignó. |
-| `historial_estados` | `id`, `solicitud_id`, `estado_anterior`, `estado_nuevo`, `cambiado_por`, `fecha`, `nota` | Auditoría de cada cambio de estado en una solicitud. |
+| `solicitudes` | `id`, `residente_id`, `unidad_id`, `tipo`, `categoria`, `descripcion`, `estado`, `prioridad`, `imagen_url`, `piso`, `departamento`, `created_at`, `updated_at` | Solicitud de mantenimiento. `imagen_url` apunta al bucket `solicitudes-fotos` (Supabase Storage, ADR-005). `prioridad`: `Normal \| Urgente`, editable por admin desde el drawer. Estado: `pendiente \| asignada \| en_progreso \| resuelta \| cerrada`. |
+| `asignaciones` | `id`, `solicitud_id`, `tecnico_id`, `asignado_por`, `fecha_asignacion`, `notas`, `empresa_tercero` | Registro de qué técnico atiende cada solicitud y quién asignó. `empresa_tercero` se usa cuando el técnico es contratista externo. |
+| `historial_estados` | `id`, `solicitud_id`, `estado_anterior`, `estado_nuevo`, `cambiado_por`, `nota`, `created_at` | Auditoría de cada cambio de estado en una solicitud. |
 | `notificaciones` | `id`, `usuario_id`, `solicitud_id`, `tipo`, `mensaje`, `leida`, `created_at` | Cola de notificaciones. Tipo: `estado_cambio \| asignacion \| nueva_solicitud \| sistema`. |
-| `audit_log` | `id`, `usuario_id`, `accion`, `entidad`, `entidad_id`, `detalles`, `resultado`, `created_at` | Log de auditoría general. `detalles` es JSON estructurado. `resultado`: `exitoso \| fallido`. Sin PII innecesaria. |
+| `audit_log` | `id`, `usuario_id`, `accion`, `entidad`, `entidad_id`, `resultado`, `created_at` | Log de auditoría general. Solo IDs (sin PII directa). `resultado`: `exitoso \| fallido`. Visible solo para admin. |
 
-> **Nota de diseño pendiente — Unidad vs. Perfil:** El tipo `Profile` almacena `piso` y `departamento` como strings libres. La tabla `unidades` es un catálogo formal con FK. En Sprint 2, al implementar la creación de solicitudes, el equipo debe decidir: (a) el residente selecciona su unidad de un dropdown que consulta `unidades` y el sistema guarda el FK, o (b) se crea automáticamente un registro en `unidades` a partir de `piso`+`departamento` del perfil. Esta decisión debe actualizarse aquí y en ADR correspondiente.
+> **Decisión de Unidad vs. Perfil (resuelta en Sprint 3):** Se eligió la opción (b): la unidad se infiere de `piso`+`departamento` del perfil del residente. La tabla `solicitudes` mantiene `unidad_id` nullable como FK opcional para compatibilidad futura, y duplica `piso`+`departamento` para mostrar la ubicación sin joins. La tabla `unidades` queda como catálogo formal disponible para Sprints futuros si se requiere normalizar.
 
 **Enumeraciones del dominio:**
 
@@ -268,7 +269,7 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 
 | ID | Rol | Historia | Criterios clave | Estimación |
 |---|---|---|---|---|
-| RF-06 | Residente | Quiero crear una solicitud indicando tipo, categoría, descripción y mi unidad para notificar al admin. | Formulario con validación. Confirmación con ID. Estado inicial: `pendiente`. Unidad asociada al residente. | 8 pts |
+| RF-06 | Residente | Quiero crear una solicitud indicando tipo, categoría, descripción, prioridad y **foto obligatoria del problema** para notificar al admin con evidencia visual. | Formulario con validación. Foto en JPEG/PNG (≤ 5 MB) subida a Supabase Storage. Confirmación con ID. Estado inicial: `pendiente`. Unidad inferida del perfil. | 8 pts |
 | RF-07 | Residente | Quiero ver el historial de mis solicitudes con estado actual y fecha. | Lista cronológica. Filtro por estado. Detalle con historial de cambios de estado. | 5 pts |
 | RF-08 | Residente | Quiero recibir una notificación cuando el estado de mi solicitud cambie. | Notificación en pantalla (Realtime). Email simulado. Marcar como leída. | 5 pts |
 
@@ -325,8 +326,8 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 | PBI-03 | Chore | P1 | Configurar CI con lint + unit tests para detectar fallas en PR tempranamente. | Pipeline ESLint + Vitest en PR + gate bloquea si falla | 3 | ✅ |
 | PBI-04 | Historia | P1 | Como usuario, quiero registrarme, verificar mi email e iniciar sesión para acceder al sistema. | Login + logout + registro + verificación email + recuperar contraseña + redirect por rol | 8 | ✅ |
 | PBI-05 | Historia | P1 | Como sistema, necesito rutas protegidas por rol y estado de cuenta para proteger los datos. | ProtectedRoute + RLS + redirect al panel correcto + bloqueo cuentas pendientes | 8 | ✅ |
-| PBI-06 | Historia | P1 | Como residente, quiero crear una solicitud con tipo, categoría y descripción para notificar al admin. | Formulario válido + confirmación + estado Pendiente + seed demo | 8 | Pendiente |
-| PBI-07 | Historia | P1 | Como admin, quiero ver todas las solicitudes con filtros para gestionar el mantenimiento. | Panel con filtros estado/tipo + ordenamiento + paginación | 8 | Pendiente |
+| PBI-06 | Historia | P1 | Como residente, quiero crear una solicitud con tipo, categoría, descripción y **foto obligatoria** para notificar al admin con evidencia visual. | Formulario válido + foto en Supabase Storage + confirmación + estado Pendiente + seed demo | 8 | ✅ v1 (Sprint 3) |
+| PBI-07 | Historia | P1 | Como admin, quiero ver todas las solicitudes con filtros para gestionar el mantenimiento. | Panel con filtros estado/tipo + ordenamiento + miniatura de foto + drawer de detalle | 8 | ✅ v1 (Sprint 3) |
 | PBI-08 | Historia | P1 | Como admin, quiero asignar una solicitud a un técnico con nota para delegar el trabajo. | Selector técnico + nota + notificación + registro historial | 5 | Pendiente |
 | PBI-09 | Historia | P1 | Como técnico, quiero ver mis solicitudes asignadas y actualizar su estado para informar avance. | Lista filtrada por `tecnico_id` + cambio estado + nota cierre | 5 | Pendiente |
 | PBI-10 | Historia | P1 | Como residente, quiero ver el historial de mis solicitudes para saber si fueron atendidas. | Lista con filtro estado + detalle con historial de cambios | 5 | Pendiente |
@@ -337,7 +338,7 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 | PBI-15 | Historia | P2 | Como técnico, quiero agregar una nota de cierre al resolver una solicitud para documentar el trabajo. | Campo nota obligatoria al marcar resuelta + guardado en historial | 3 | Pendiente |
 | PBI-16 | Historia | P2 | Como dev, quiero README e instrucciones claras para correr el proyecto y los tests. | README prereqs + correr local + correr tests + seed demo | 3 | Pendiente |
 | PBI-17 | Historia | P2 | Como admin, quiero exportar solicitudes a CSV para llevar registro externo. | Exporta por rango fechas + campos definidos + solo admin | 3 | Pendiente |
-| PBI-18 | Historia | P2 | Como admin, quiero activar o bloquear cuentas de usuarios para controlar accesos. | Panel usuarios + cambio estado_cuenta + efecto inmediato en sesión | 5 | Pendiente |
+| PBI-18 | Historia | P2 | Como admin, quiero activar o bloquear cuentas de usuarios para controlar accesos. | Panel usuarios + cambio estado_cuenta + efecto inmediato en sesión (Edge Function `bloquear-cuenta`) | 5 | ✅ (Sprint 2 + extensión Sprint 3) |
 | PBI-19 | Historia | P2 | Como sistema, quiero E2E para flujos críticos para detectar regresiones automáticamente. | E2E: crear solicitud, asignar, cerrar — corre en CI | 5 | Pendiente |
 | PBI-20 | Spike | P2 | Realizar threat model ligero + checklist OWASP aplicable al producto. | Diagrama flujo datos + amenazas top 5-8 + checklist 10 controles + ADR | 3 | Pendiente |
 | PBI-21 | Chore | P2 | Configurar despliegue automático a staging al mergear a main (CD). | Merge a main → deploy Vercel + smoke test + secretos seguros | 3 | Pendiente |
@@ -347,30 +348,32 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 
 ## 8. Roadmap de 16 semanas
 
+> **Filosofía del roadmap:** Cada Sprint cierra con un entregable visible y demostrable al profesor. La Semana 1 fue de introducción al curso (sin Sprint formal); el trabajo técnico arrancó en la Semana 2.
+
 | Sem. | Sprint | Objetivo del Sprint | PBIs | Entregable verificable | DoD |
 |---|---|---|---|---|---|
-| 1 | S0 | Arranque técnico y decisiones base | PBI-01, PBI-02, PBI-03 | Repo + CI verde + ADRs + tipos de DB + estructura de proyecto | v1 |
-| 2 | S1 | Autenticación completa y rutas protegidas | PBI-04, PBI-05 | Login/registro/recovery + RLS + redirect por rol + staging | v1 |
-| 3 | S2 | Residente crea y ve solicitudes | PBI-06, PBI-10, PBI-16 | Formulario funcional + lista solicitudes + README + seed sintético | v1 |
-| 4 | S3 | Admin visualiza y gestiona solicitudes | PBI-07, PBI-11 | Panel admin + filtros + seed no-PII | v1 |
-| 5 | S4 | Técnico ve y actualiza sus tareas | PBI-09, PBI-15 | Vista técnico + actualizar estado + nota cierre | v1 |
-| 6 | S5 | Asignación y trazabilidad de cambios | PBI-08, PBI-13 | Asignar técnico + historial estados + log auditoría | v2 |
-| 7 | S6 | Notificaciones y operabilidad | PBI-12, PBI-14 | Realtime notif + audit_log + `/health` endpoint | v2 |
-| 8 | S7 | Calidad: E2E + threat model | PBI-19, PBI-20 | Suite E2E (Playwright instalado) + threat model + checklist OWASP | v2 |
-| 9 | S8 | CD: despliegue continuo a staging | PBI-21 | Deploy automático + smoke test + secretos seguros | v2 |
-| 10 | S9 | Métricas, exportación y gestión de cuentas | PBI-17, PBI-22, PBI-18 | Export CSV + panel KPIs + activar/bloquear cuentas | v2 |
-| 11 | S10 | Hardening y deuda técnica | Emergentes | 3-5 mejoras desde Review anterior | v2 |
-| 12 | S11 | Privacidad y seudonimización reforzada | PBI-11 (refinado) | Política PII completa + limpieza staging | v2 |
-| 13 | S12 | Performance y robustez | Emergentes | Pruebas de carga básicas + optimizaciones Lighthouse | v3 |
-| 14 | S13 | Seguridad y observabilidad | Emergentes | Checklist OWASP aplicada + logging mejorado | v3 |
-| 15 | S14 | Release candidate y docs finales | Emergentes | RC en staging + manual operativo | v3 |
-| 16 | S15 | Entrega final: demo + retro | — | Demo final + métricas del curso + retro final | v3 |
+| 1 | — | Introducción al curso (sin Sprint formal) | — | Presentación del equipo + definición del producto | — |
+| 2 | S0 | Arranque técnico y decisiones base | PBI-01, PBI-02, PBI-03 | Repo + CI verde + ADRs + tipos de DB + estructura de proyecto | v1 |
+| 3 | S1 | Autenticación completa y rutas protegidas | PBI-04, PBI-05 | Login/registro 2 pasos/recovery + RLS + redirect por rol + staging | v1 |
+| 4 | S2 | Modelamiento BD + panel admin + gestión de usuarios | PBI-02 (refinado), PBI-18 | BD completa + panel admin con tabla filtrable + invitaciones + bloqueo | v1 |
+| 5 | S3 | Mantenimiento v1: crear solicitud con foto + vista admin | PBI-06, PBI-07 | Formulario con foto en Supabase Storage + drawer admin + filtros | v1 |
+| 6 | S4 | Mantenimiento v2: asignación + vista técnico + nota cierre | PBI-08, PBI-09, PBI-10, PBI-15 | Asignación a técnico + vista técnico + cierre con nota + historial | v2 |
+| 7 | S5 | Trazabilidad: historial de estados + audit log visible | PBI-13, PBI-14 | Audit log con filtros + historial completo en detalle + helper centralizado | v2 |
+| 8 | S6 | Notificaciones en tiempo real (Supabase Realtime) | PBI-12 | Realtime activo en 3 dashboards + centro de notificaciones + email simulado | v2 |
+| 9 | S7 | Calidad: Playwright + suite E2E + threat model + OWASP | PBI-19, PBI-20 | Suite E2E en CI + threat model + checklist OWASP top 10 | v2 |
+| 10 | S8 | CD: despliegue continuo a staging + `/health` + smoke tests | PBI-21 | Deploy automático + endpoint `/health` + rollback documentado | v2 |
+| 11 | S9 | Métricas y exportación: panel KPIs + CSV | PBI-17, PBI-22 | Dashboard de KPIs con gráficas + exportación CSV con rango de fechas | v2 |
+| 12 | S10 | Hardening + deuda técnica acumulada | Emergentes | Refactor Edge Functions + emergentes + dependencias al día | v2 |
+| 13 | S11 | Privacidad y seudonimización reforzada | PBI-11 | Política PII completa + workflow `clean:staging` + cero PII en logs | v3 |
+| 14 | S12 | Performance y robustez | Emergentes | Lighthouse ≥ 80 + k6 50 usuarios + code splitting | v3 |
+| 15 | S13 | Seguridad y observabilidad | Emergentes | OWASP completo + logging estructurado + alertas Vercel | v3 |
+| 16 | S14 | ★ Twilio Verify (sorpresa) + Release Candidate + Demo final | HU-AUTH-07 | 2FA SMS real funcionando + tag `v1.0.0-rc` + manual operativo + demo grabada + retro del curso | v3 |
 
 ---
 
 ## 9. Definición de Terminado (DoD)
 
-### DoD v1 — Semanas 1–5 · *"Baseline funcional y reproducible"*
+### DoD v1 — Semanas 2–5 · *"Baseline funcional y reproducible"*
 
 - [ ] Código mergeado a `main` con CI en verde (lint ESLint + unit tests Vitest).
 - [ ] PR revisado por al menos 1 Developer.
@@ -412,7 +415,7 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 | Uso accidental de PII real | Baja | Alta | Datos reales en seeds o logs del repo | Política `no-PII` en README + seed con datos manuales ficticios. |
 | Staging inestable por deploys fallidos | Media | Media | Deploys manuales inconsistentes | CD con smoke test post-deploy; `/health` monitoreado en Sprint Review. |
 | Supabase free tier alcanza límites | Baja | Media | Errores de conexión en demos | Límites documentados; limpiar datos de staging regularmente. |
-| Cuentas pendientes acumuladas sin activar | Baja | Media | Usuarios registrados que no pueden usar el sistema | Admin recibe notificación de cuenta nueva; gestión de cuentas en Sprint 9. |
+| Cuentas pendientes acumuladas sin activar | Baja | Media | Usuarios registrados que no pueden usar el sistema | Admin recibe notificación de cuenta nueva; gestión de cuentas implementada en Sprint 2 (panel admin con filtro por estado y tiempo de invitación). |
 | Playwright no disponible a tiempo (Sprint 7) | Media | Media | Dependencia de instalación y configuración nueva | Reservar tiempo de setup en Sprint 7; E2E manual como fallback temporal. |
 
 ---
@@ -463,6 +466,39 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 | Consecuencias | Se requiere un trigger en Supabase que cree el perfil al registrarse. El `estado_cuenta` permite controlar el acceso a nivel de aplicación sin deshabilitar la cuenta en Auth. |
 | Evidencia | Tipo `Profile` en `src/types/database.ts`; `AuthContext` consulta `profiles` en cada sesión. |
 
+### ADR-005 — Manejo de imágenes con Supabase Storage
+
+| Campo | Detalle |
+|---|---|
+| Estado | Aprobado — Sprint 3 |
+| Contexto | El módulo de mantenimiento requiere que los residentes adjunten fotos de los problemas. Se necesita almacenamiento de archivos seguro, accesible por rol y con limpieza automática. |
+| Opciones | A) **Supabase Storage** (seleccionada) · B) Cloudinary (requiere cuenta de pago para más de 25 créditos) · C) Base64 en BD (descartada: infla la BD y degrada rendimiento) |
+| Decisión | Supabase Storage con bucket privado `solicitudes-fotos`. URLs firmadas con expiración de 1 hora para visualización. Limpieza automática con trigger al eliminar solicitud. Formatos aceptados: JPEG/PNG, máx. 5 MB. |
+| Consecuencias | Requiere variable de entorno `SUPABASE_SERVICE_ROLE_KEY` para operaciones admin (subida con políticas). Se maneja en GitHub Secrets y Edge Function para no exponer en frontend. |
+| Evidencia | Bucket creado + políticas de acceso documentadas en `/docs/storage.md` + seed con imágenes de picsum.photos + flujo de creación de solicitud demostrado en Sprint 3 Review. |
+
+### ADR-006 — Framework de E2E: Playwright (planificado Sprint 7)
+
+| Campo | Detalle |
+|---|---|
+| Estado | Planificado — Sprint 7 |
+| Contexto | Desde DoD v3 se exige una suite E2E que cubra los 3 flujos críticos (crear solicitud, asignar, cerrar) corriendo como gate de merge en CI. |
+| Opciones | A) **Playwright** (planificada) · B) Cypress · C) E2E manual permanente |
+| Decisión | Playwright por su soporte nativo multi-navegador (Chromium + Firefox), generación de videos/screenshots, integración limpia con GitHub Actions y trace viewer. |
+| Consecuencias | Tiempo de setup en Sprint 7. Requiere fallback de E2E manual si la instalación se desborda en horas. ADR formal se redactará en Sprint 7 al instalar. |
+| Evidencia | Pendiente — instalación + 3 escenarios E2E corriendo en CI al cierre del Sprint 7. |
+
+### ADR-007 — Twilio Verify para 2FA SMS (planificado Sprint 14)
+
+| Campo | Detalle |
+|---|---|
+| Estado | Aprobado por PO — Implementación planificada Sprint 14 (Semana 16, cierre del curso) |
+| Contexto | Cotización presentada por PO en Sprint 3 Planning: Twilio Verify API a $0.05 USD/verificación con $15 de crédito inicial. Se reservó intencionalmente para el cierre del curso como integración estelar de la demo final. |
+| Opciones | A) **Twilio Verify** (seleccionada) · B) Email-based 2FA (más simple, menos impactante) · C) Sin 2FA |
+| Decisión | Twilio Verify para 2FA opcional en cuentas admin. Implementación reservada para Sprint 14 como sorpresa de la demo final. Costo estimado para todo el curso: $5–10 USD. |
+| Consecuencias | Requiere validación previa con número del equipo en Sprint 13. Tener video pregrabado del 2FA como fallback por si falla la red móvil durante la demo. ADR formal se completa en Sprint 14 al implementar. |
+| Evidencia | Pendiente — flujo 2FA SMS funcional con número real del equipo, demostrado en demo final. |
+
 ---
 
 ## 12. Privacidad y datos
@@ -480,27 +516,35 @@ En edificios y condominios residenciales, la comunicación entre residentes, adm
 
 ## 13. Estado actual de implementación
 
-> Última actualización: Semana 2 — Sprint 1 en curso.
+> Última actualización: Semana 5 — Sprint 3 cerrado. Próximo: Sprint 4 (Semana 6).
 
 | Módulo | Componentes / Archivos | Estado |
 |---|---|---|
-| Infraestructura | Repo GitHub + CI (ESLint + Vitest) + Vite + TailwindCSS v4 + TypeScript | ✅ Completo |
-| Tipos de dominio | `src/types/database.ts` — Profile, Edificio, Unidad, Solicitud, Asignacion, HistorialEstado, Notificacion, AuditLog | ✅ Completo |
-| Supabase client | `src/lib/supabase.ts` | ✅ Completo |
-| AuthContext | `src/contexts/AuthContext.tsx` — signIn, signUp, signOut, resetPassword, updatePassword, fetchProfile | ✅ Completo |
-| Páginas de auth | Login, Register, ForgotPassword, ResetPassword, VerifyEmail | ✅ Completo |
-| Routing + protección | App.tsx con React Router v7, ProtectedRoute, GuestRoute, RootRedirect | ✅ Completo |
-| AdminDashboard | Shell básico con header y tarjetas placeholder | 🔄 Esqueleto |
-| ResidenteDashboard | Shell básico con header | 🔄 Esqueleto |
-| TecnicoDashboard | Shell básico con header | 🔄 Esqueleto |
-| Solicitudes (CRUD) | — | ⏳ Planificado Sprint 2 |
-| Asignaciones | — | ⏳ Planificado Sprint 5 |
+| Infraestructura | Repo GitHub + CI (ESLint + Vitest) + Vite + TailwindCSS v4 + TypeScript | ✅ Completo (Sprint 0) |
+| Tipos de dominio | `src/types/database.ts` — Profile, Invitacion, Edificio, Unidad, Solicitud, Asignacion, HistorialEstado, Notificacion, AuditLog | ✅ Completo (Sprint 0/2) |
+| Supabase client | `src/lib/supabase.ts` | ✅ Completo (Sprint 0) |
+| AuthContext | `src/contexts/AuthContext.tsx` — signIn, signUp, signOut, resetPassword, updatePassword, fetchProfile | ✅ Completo (Sprint 1) |
+| Páginas de auth | Login, Register (2 pasos), ForgotPassword, ResetPassword, VerifyEmail, EmailVerified, Activar | ✅ Completo (Sprint 1) |
+| Routing + protección | App.tsx con React Router v7, ProtectedRoute, GuestRoute, RootRedirect | ✅ Completo (Sprint 1) |
+| Modelamiento BD | Migraciones completas: `profiles`, `invitaciones`, `edificios`, `unidades`, `solicitudes`, `asignaciones`, `historial_estados`, `notificaciones`, `audit_log` | ✅ Completo (Sprint 2) |
+| AdminDashboard | Shell con stats + accesos rápidos + navegación a Usuarios y Solicitudes | ✅ Completo (Sprint 2/3) |
+| AdminUsuarios | `/admin/usuarios` — tabla con filtros por rol/estado, tiempo desde invitación, badge de estado | ✅ Completo (Sprint 2) |
+| AdminSolicitudes | `/admin/solicitudes` — tabla con miniaturas + drawer de detalle + filtros por estado/tipo + edición de prioridad | ✅ Completo (Sprint 3) |
+| Edge Functions | `invitaciones` (crear + envío email Resend), `bloquear-cuenta` (cambio estado + invalidación de sesión) | ✅ Completo (Sprint 2/3) |
+| ResidenteDashboard | Shell + formulario "Nueva solicitud" con foto obligatoria + lista del residente | ✅ Completo v1 (Sprint 3) |
+| TecnicoDashboard | Shell básico con header | 🔄 Esqueleto — Sprint 4 implementa funcionalidad |
+| Solicitudes (crear con foto) | Formulario completo con Supabase Storage + validación + preview + indicador de progreso | ✅ Completo (Sprint 3) |
+| Supabase Storage | Bucket `solicitudes-fotos` con políticas RLS + URLs firmadas + nomenclatura por solicitud | ✅ Completo (Sprint 3) |
+| Asignaciones | — | ⏳ Planificado Sprint 4 |
+| Vista del técnico | — | ⏳ Planificado Sprint 4 |
+| Historial de estados (vista detalle) | Tabla creada y operativa, vista de detalle pendiente | ⏳ Planificado Sprint 5 |
+| Audit log (vista admin) | Tabla creada, vista admin pendiente | ⏳ Planificado Sprint 5 |
 | Notificaciones Realtime | — | ⏳ Planificado Sprint 6 |
-| Audit log (vista admin) | — | ⏳ Planificado Sprint 6 |
+| E2E (Playwright) | — | ⏳ Planificado Sprint 7 |
+| CD (deploy staging automático) | — | ⏳ Planificado Sprint 8 |
 | Exportación CSV | — | ⏳ Planificado Sprint 9 |
 | Métricas / KPIs | — | ⏳ Planificado Sprint 9 |
-| E2E (Playwright) | — | ⏳ Planificado Sprint 7 |
-| CD (deploy staging) | — | ⏳ Planificado Sprint 8 |
+| Twilio Verify (2FA SMS) | — | ⏳ Planificado Sprint 14 (★ sorpresa final) |
 
 ---
 

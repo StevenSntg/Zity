@@ -5,6 +5,14 @@ import type { SignUpMetadata } from '../types/database'
 import AuthLayout from '../components/AuthLayout'
 import PasswordInput from '../components/PasswordInput'
 import BarraProgreso from '../components/BarraProgreso'
+import FieldError from '../components/FieldError'
+import {
+  ALPHANUMERIC_REGEX,
+  EMAIL_REGEX,
+  NAME_REGEX,
+  PASSWORD_REGEX,
+  PHONE_PREFIX,
+} from '../lib/validators'
 
 type Step1Data = {
   email: string
@@ -16,23 +24,6 @@ type Step2Data = SignUpMetadata
 
 type Step1Errors = Partial<Record<'email' | 'password' | 'confirmPassword', string>>
 type Step2Errors = Partial<Record<'nombre' | 'apellido' | 'telefono' | 'piso' | 'departamento', string>>
-
-const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d).{8,}$/
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const NAME_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s-]{2,50}$/
-const ALPHANUMERIC_REGEX = /^[a-zA-Z0-9]{1,10}$/
-const PHONE_PREFIX = '+51 '
-
-function FieldError({ message }: { message: string }) {
-  return (
-    <p className="mt-1.5 text-xs text-error flex items-center gap-1">
-      <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-      </svg>
-      {message}
-    </p>
-  )
-}
 
 export default function Register() {
   const navigate = useNavigate()

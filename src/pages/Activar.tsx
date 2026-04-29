@@ -3,15 +3,28 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import AuthLayout from '../components/AuthLayout'
 import PasswordInput from '../components/PasswordInput'
-
-const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d).{8,}$/
+import FieldError from '../components/FieldError'
+import { PASSWORD_REGEX } from '../lib/validators'
 
 type EstadoInvite = 'verificando' | 'listo' | 'invalido'
+
+const VERIFY_TIMEOUT_MS = 5000
+
+// Detecta antes del primer render si el hash de la URL ya viene con error,
+// para no entrar al estado 'verificando' inútilmente y evitar setState
+// síncrono dentro de useEffect (regla react-hooks/set-state-in-effect).
+function estadoInicialDesdeHash(): EstadoInvite {
+  if (typeof window === 'undefined') return 'verificando'
+  const hash = window.location.hash
+  return hash.includes('error') || hash.includes('error_description')
+    ? 'invalido'
+    : 'verificando'
+}
 
 export default function Activar() {
   const navigate = useNavigate()
 
-  const [estado, setEstado] = useState<EstadoInvite>('verificando')
+  const [estado, setEstado] = useState<EstadoInvite>(estadoInicialDesdeHash)
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -19,38 +32,34 @@ export default function Activar() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (estado === 'invalido') return
+
     let cancelado = false
 
-    async function verificar() {
-      const hash = window.location.hash
-      if (hash.includes('error') || hash.includes('error_description')) {
-        if (!cancelado) setEstado('invalido')
-        return
+    // Supabase procesa el token del invite y dispara INITIAL_SESSION/SIGNED_IN
+    // automáticamente. Suscribirse al evento es instantáneo en cuanto el SDK
+    // canjea el token; mucho más rápido que el polling activo de getSession.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelado) return
+      if (session?.user) {
+        setEmail(session.user.email ?? '')
+        setEstado('listo')
       }
+    })
 
-      // Supabase procesa el token del link de invitación y abre una sesión temporal.
-      // Puede tardar un tick después del mount; damos un pequeño margen antes de fallar.
-      for (let intento = 0; intento < 20; intento++) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          if (!cancelado) {
-            setEmail(session.user.email ?? '')
-            setEstado('listo')
-          }
-          return
-        }
-        await new Promise(r => setTimeout(r, 150))
-        if (cancelado) return
+    // Si el SDK no canjea el token en VERIFY_TIMEOUT_MS, asumimos link inválido.
+    const timeout = setTimeout(() => {
+      if (!cancelado) {
+        setEstado(prev => (prev === 'verificando' ? 'invalido' : prev))
       }
+    }, VERIFY_TIMEOUT_MS)
 
-      if (!cancelado) setEstado('invalido')
-    }
-
-    verificar()
     return () => {
       cancelado = true
+      clearTimeout(timeout)
+      subscription.unsubscribe()
     }
-  }, [])
+  }, [estado])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -181,12 +190,7 @@ export default function Activar() {
             required
           />
           {confirmPassword && password !== confirmPassword && (
-            <p className="mt-1.5 text-xs text-error flex items-center gap-1">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Las contraseñas no coinciden
-            </p>
+            <FieldError message="Las contraseñas no coinciden" />
           )}
         </div>
 

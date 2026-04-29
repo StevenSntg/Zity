@@ -1,5 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import FullPageSpinner from './FullPageSpinner'
+import { ROLE_ROUTES } from '../lib/routing'
 import type { Rol } from '../types/database'
 
 type ProtectedRouteProps = {
@@ -10,36 +12,18 @@ type ProtectedRouteProps = {
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-warm-50">
-        <div className="flex flex-col items-center gap-4 animate-fade-in">
-          <div className="w-10 h-10 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-          <p className="text-warm-400 text-sm font-body">Cargando...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <FullPageSpinner />
 
-  if (!user) {
+  if (!user) return <Navigate to="/login" replace />
+
+  // Sin profile cargado o cuenta no activa → al login (un usuario con sesión
+  // pero sin perfil válido no puede operar contra RLS).
+  if (!profile || profile.estado_cuenta !== 'activo') {
     return <Navigate to="/login" replace />
   }
 
-  if (profile?.estado_cuenta === 'pendiente') {
-    return <Navigate to="/login" replace />
-  }
-
-  if (profile?.estado_cuenta === 'bloqueado') {
-    return <Navigate to="/login" replace />
-  }
-
-  if (allowedRoles && profile && !allowedRoles.includes(profile.rol)) {
-    const redirectMap: Record<Rol, string> = {
-      admin: '/admin',
-      residente: '/residente',
-      tecnico: '/tecnico',
-    }
-    return <Navigate to={redirectMap[profile.rol]} replace />
+  if (allowedRoles && !allowedRoles.includes(profile.rol)) {
+    return <Navigate to={ROLE_ROUTES[profile.rol]} replace />
   }
 
   return <>{children}</>

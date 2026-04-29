@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { iniciales } from '../../lib/format'
 import zityLogo from '../../assets/zity_logo.png'
 
 type Props = {
@@ -31,12 +32,6 @@ const NAV = [
     ),
   },
 ]
-
-function iniciales(nombre?: string, apellido?: string): string {
-  const n = (nombre ?? '').trim()[0] ?? ''
-  const a = (apellido ?? '').trim()[0] ?? ''
-  return (n + a).toUpperCase() || 'AD'
-}
 
 export default function AdminShell({ children, title, subtitle, actions }: Props) {
   const { profile, signOut } = useAuth()
@@ -91,7 +86,7 @@ export default function AdminShell({ children, title, subtitle, actions }: Props
         <div className="border-t border-warm-200 p-4">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-semibold text-sm shrink-0">
-              {iniciales(profile?.nombre, profile?.apellido)}
+              {iniciales(profile?.nombre, profile?.apellido, 'AD')}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-primary-900 truncate">
@@ -154,7 +149,7 @@ export default function AdminShell({ children, title, subtitle, actions }: Props
 
             <div className="flex items-center gap-3 px-5 py-4 border-b border-warm-200 bg-warm-50">
               <div className="w-11 h-11 rounded-full bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-semibold text-sm shrink-0">
-                {iniciales(profile?.nombre, profile?.apellido)}
+                {iniciales(profile?.nombre, profile?.apellido, 'AD')}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-primary-900 truncate">

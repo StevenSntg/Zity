@@ -81,9 +81,11 @@ describe('TablaUsuarios', () => {
 
   it('llama onBloquear al hacer click en Bloquear', () => {
     const onBloquear = vi.fn()
+    const [admin] = mockUsuarios
+    if (!admin) throw new Error('mockUsuarios vacío')
     render(
       <TablaUsuarios
-        usuarios={[mockUsuarios[0]]}
+        usuarios={[admin]}
         loading={false}
         onBloquear={onBloquear}
         onDesbloquear={vi.fn()}
@@ -92,7 +94,9 @@ describe('TablaUsuarios', () => {
     )
     const botones = screen.getAllByRole('button', { name: /bloquear/i })
     expect(botones.length).toBeGreaterThan(0)
-    fireEvent.click(botones[0])
-    expect(onBloquear).toHaveBeenCalledWith(mockUsuarios[0])
+    const primerBoton = botones[0]
+    if (!primerBoton) throw new Error('No se encontró el botón')
+    fireEvent.click(primerBoton)
+    expect(onBloquear).toHaveBeenCalledWith(admin)
   })
 })

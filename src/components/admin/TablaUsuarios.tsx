@@ -1,4 +1,5 @@
 import type { Profile } from '../../types/database'
+import { iniciales, tiempoTranscurrido } from '../../lib/format'
 import BadgeEstado from './BadgeEstado'
 
 type Props = {
@@ -9,25 +10,6 @@ type Props = {
   onBloquear: (usuario: Profile) => void
   onDesbloquear: (usuario: Profile) => void
   onReenviar: (usuario: Profile) => void
-}
-
-function tiempoTranscurrido(fechaISO: string): string {
-  try {
-    const diffMs = Date.now() - new Date(fechaISO).getTime()
-    const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
-    const diffDays = Math.floor(diffMs / 86_400_000)
-    const diffHours = Math.floor(diffMs / 3_600_000)
-    const diffMinutes = Math.floor(diffMs / 60_000)
-    if (diffDays >= 1) return rtf.format(-diffDays, 'day')
-    if (diffHours >= 1) return rtf.format(-diffHours, 'hour')
-    return rtf.format(-diffMinutes, 'minute')
-  } catch {
-    return 'hace un momento'
-  }
-}
-
-function iniciales(nombre: string, apellido: string): string {
-  return ((nombre[0] ?? '') + (apellido[0] ?? '')).toUpperCase() || '??'
 }
 
 type AccionesProps = {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useModalBehavior } from '../../hooks/useModalBehavior'
 
 type Props = {
   titulo: string
@@ -19,17 +19,7 @@ export default function ModalConfirmacion({
   onConfirmar,
   onCancelar,
 }: Props) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !cargando) onCancelar()
-    }
-    window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onCancelar, cargando])
+  useModalBehavior(onCancelar, cargando)
 
   return (
     <div

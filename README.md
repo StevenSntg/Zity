@@ -50,10 +50,14 @@ npm run test:run
 npm run test:coverage
 ```
 
-## Lint
+## Lint y typecheck
 
 ```bash
+# ESLint sobre src/, scripts/, configs.
 npm run lint
+
+# Comprobación de tipos sin emitir archivos.
+npm run typecheck
 ```
 
 ## Datos demo (seed)

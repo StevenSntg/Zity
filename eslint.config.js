@@ -22,6 +22,8 @@ export default defineConfig([
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Permitimos console.warn / console.error pero no console.log en producción.
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
   {

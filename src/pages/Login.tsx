@@ -1,13 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
-import type { Rol } from '../types/database'
 import AuthLayout from '../components/AuthLayout'
 import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
-  const navigate = useNavigate()
   const location = useLocation()
   const { signIn } = useAuth()
 
@@ -31,15 +28,9 @@ export default function Login() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    const rol = (user?.user_metadata?.rol as Rol) ?? 'residente'
-
-    const redirectMap: Record<Rol, string> = {
-      admin: '/admin',
-      residente: '/residente',
-      tecnico: '/tecnico',
-    }
-    navigate(redirectMap[rol], { replace: true })
+    // Tras un signIn exitoso, supabase-js dispara SIGNED_IN en onAuthStateChange.
+    // El AuthContext fetchea el profile y GuestRoute redirige automáticamente al
+    // dashboard correcto según profile.rol — sin round-trip extra a getUser().
   }
 
   return (
@@ -71,7 +62,6 @@ export default function Login() {
             Correo electrónico
           </label>
           <div className="relative">
-            
             <input
               id="email"
               type="email"

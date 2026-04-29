@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useInvitacion } from '../../hooks/useInvitacion'
+import { useModalBehavior } from '../../hooks/useModalBehavior'
+import { EMAIL_REGEX } from '../../lib/validators'
 import type { Rol } from '../../types/database'
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type Errores = Partial<Record<'email' | 'nombre' | 'rol', string>>
 
@@ -24,17 +24,7 @@ export default function ModalInvitacion({ onEnviado, onCerrar }: Props) {
   })
   const [errores, setErrores] = useState<Errores>({})
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !cargando) onCerrar()
-    }
-    window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onCerrar, cargando])
+  useModalBehavior(onCerrar, cargando)
 
   function validar(): Errores {
     const e: Errores = {}
