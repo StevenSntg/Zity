@@ -46,6 +46,7 @@ describe('TablaUsuarios', () => {
         loading={false}
         onBloquear={vi.fn()}
         onDesbloquear={vi.fn()}
+        onActivar={vi.fn()}
         onReenviar={vi.fn()}
       />
     )
@@ -60,6 +61,7 @@ describe('TablaUsuarios', () => {
         loading={false}
         onBloquear={vi.fn()}
         onDesbloquear={vi.fn()}
+        onActivar={vi.fn()}
         onReenviar={vi.fn()}
       />
     )
@@ -73,6 +75,7 @@ describe('TablaUsuarios', () => {
         loading={true}
         onBloquear={vi.fn()}
         onDesbloquear={vi.fn()}
+        onActivar={vi.fn()}
         onReenviar={vi.fn()}
       />
     )
@@ -89,6 +92,7 @@ describe('TablaUsuarios', () => {
         loading={false}
         onBloquear={onBloquear}
         onDesbloquear={vi.fn()}
+        onActivar={vi.fn()}
         onReenviar={vi.fn()}
       />
     )

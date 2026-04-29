@@ -9,6 +9,7 @@ type Props = {
   reenviandoEmail?: string | null
   onBloquear: (usuario: Profile) => void
   onDesbloquear: (usuario: Profile) => void
+  onActivar: (usuario: Profile) => void
   onReenviar: (usuario: Profile) => void
 }
 
@@ -18,21 +19,30 @@ type AccionesProps = {
   reenviandoEmail?: string | null
   onBloquear: (u: Profile) => void
   onDesbloquear: (u: Profile) => void
+  onActivar: (u: Profile) => void
   onReenviar: (u: Profile) => void
 }
 
-function AccionesUsuario({ usuario, currentUserId, reenviandoEmail, onBloquear, onDesbloquear, onReenviar }: AccionesProps) {
+function AccionesUsuario({ usuario, currentUserId, reenviandoEmail, onBloquear, onDesbloquear, onActivar, onReenviar }: AccionesProps) {
   const esPropio = usuario.id === currentUserId
   return (
     <div className="flex items-center gap-3">
       {usuario.estado_cuenta === 'pendiente' && (
-        <button
-          onClick={() => onReenviar(usuario)}
-          disabled={reenviandoEmail === usuario.email}
-          className="text-xs sm:text-sm text-accent-600 hover:text-accent-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer py-1"
-        >
-          {reenviandoEmail === usuario.email ? 'Reenviando…' : 'Reenviar'}
-        </button>
+        <>
+          <button
+            onClick={() => onActivar(usuario)}
+            className="text-xs sm:text-sm text-success hover:text-success/80 font-medium transition-colors cursor-pointer py-1"
+          >
+            Activar
+          </button>
+          <button
+            onClick={() => onReenviar(usuario)}
+            disabled={reenviandoEmail === usuario.email}
+            className="text-xs sm:text-sm text-accent-600 hover:text-accent-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer py-1"
+          >
+            {reenviandoEmail === usuario.email ? 'Reenviando…' : 'Reenviar'}
+          </button>
+        </>
       )}
       {usuario.estado_cuenta === 'bloqueado' ? (
         <button
@@ -62,6 +72,7 @@ export default function TablaUsuarios({
   reenviandoEmail,
   onBloquear,
   onDesbloquear,
+  onActivar,
   onReenviar,
 }: Props) {
   if (loading) {
@@ -124,6 +135,7 @@ export default function TablaUsuarios({
                 reenviandoEmail={reenviandoEmail}
                 onBloquear={onBloquear}
                 onDesbloquear={onDesbloquear}
+                onActivar={onActivar}
                 onReenviar={onReenviar}
               />
             </div>
@@ -192,6 +204,7 @@ export default function TablaUsuarios({
                       reenviandoEmail={reenviandoEmail}
                       onBloquear={onBloquear}
                       onDesbloquear={onDesbloquear}
+                      onActivar={onActivar}
                       onReenviar={onReenviar}
                     />
                   </div>

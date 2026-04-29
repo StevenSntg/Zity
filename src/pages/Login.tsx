@@ -6,31 +6,34 @@ import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
   const location = useLocation()
-  const { signIn } = useAuth()
+  const { signIn, user, profile } = useAuth()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const successMessage = (location.state as { message?: string })?.message
+
+  // Si otra pestaña inició sesión mientras este formulario aún está enviando,
+  // AuthContext recibirá SIGNED_IN vía storage sync y poblará user/profile.
+  // GuestRoute hará la redirección, pero derivamos `loading` para no quedarnos
+  // con el botón en "Ingresando…" mientras llega esa redirección.
+  const sesionActivaLista = !!(user && profile?.estado_cuenta === 'activo')
+  const loading = submitting && !sesionActivaLista
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    setLoading(true)
+    setSubmitting(true)
 
     const { error: signInError } = await signIn(email, password)
 
+    setSubmitting(false)
+
     if (signInError) {
       setError(signInError)
-      setLoading(false)
-      return
     }
-
-    // Tras un signIn exitoso, supabase-js dispara SIGNED_IN en onAuthStateChange.
-    // El AuthContext fetchea el profile y GuestRoute redirige automáticamente al
-    // dashboard correcto según profile.rol — sin round-trip extra a getUser().
   }
 
   return (

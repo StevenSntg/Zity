@@ -19,9 +19,10 @@ export default function AdminUsuarios() {
   const { usuarios, loading, error, refetch } = useUsuarios(filtros)
 
   const [usuarioAccion, setUsuarioAccion] = useState<Profile | null>(null)
-  const [tipoAccion, setTipoAccion] = useState<'bloquear' | 'desbloquear' | null>(null)
+  const [tipoAccion, setTipoAccion] = useState<'bloquear' | 'desbloquear' | 'activar' | null>(null)
   const [cargandoAccion, setCargandoAccion] = useState(false)
   const [errorAccion, setErrorAccion] = useState<string | null>(null)
+  const [mensajeAccion, setMensajeAccion] = useState<string | null>(null)
 
   const [mostrarInvitacion, setMostrarInvitacion] = useState(false)
   const [confirmacionInvitacion, setConfirmacionInvitacion] = useState<string | null>(null)
@@ -40,6 +41,12 @@ export default function AdminUsuarios() {
     setErrorAccion(null)
   }
 
+  function abrirModalActivar(usuario: Profile) {
+    setUsuarioAccion(usuario)
+    setTipoAccion('activar')
+    setErrorAccion(null)
+  }
+
   async function confirmarAccion() {
     if (!usuarioAccion || !tipoAccion) return
     setCargandoAccion(true)
@@ -48,6 +55,9 @@ export default function AdminUsuarios() {
     const { data, error: fnError } = await supabase.functions.invoke('bloquear-cuenta', {
       body: { usuario_id: usuarioAccion.id, accion: tipoAccion },
     })
+
+    const accionLabel = tipoAccion
+    const usuarioNombre = `${usuarioAccion.nombre} ${usuarioAccion.apellido}`.trim()
 
     setCargandoAccion(false)
     // Cerramos el modal pase lo que pase para que el error (si lo hubo) sea
@@ -58,6 +68,11 @@ export default function AdminUsuarios() {
     if (fnError || !data?.success) {
       setErrorAccion(await extractEdgeFunctionError(data, fnError, 'Error al realizar la acción'))
       return
+    }
+
+    if (accionLabel === 'activar') {
+      setMensajeAccion(`Cuenta de ${usuarioNombre} activada correctamente.`)
+      setTimeout(() => setMensajeAccion(null), 5000)
     }
 
     refetch()
@@ -121,6 +136,15 @@ export default function AdminUsuarios() {
         </div>
       )}
 
+      {mensajeAccion && (
+        <div className="mb-4 p-4 bg-success/10 border border-success/20 rounded-lg text-success text-sm animate-scale-in flex items-start gap-2">
+          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{mensajeAccion}</span>
+        </div>
+      )}
+
       {(error || errorAccion) && (
         <div className="mb-4 p-4 bg-error/10 border border-error/20 rounded-lg text-error text-sm flex items-start gap-2">
           <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -142,19 +166,34 @@ export default function AdminUsuarios() {
           reenviandoEmail={reenviandoEmail}
           onBloquear={abrirModalBloquear}
           onDesbloquear={abrirModalDesbloquear}
+          onActivar={abrirModalActivar}
           onReenviar={handleReenviar}
         />
       </div>
 
       {tipoAccion && usuarioAccion && (
         <ModalConfirmacion
-          titulo={tipoAccion === 'bloquear' ? 'Bloquear cuenta' : 'Desbloquear cuenta'}
+          titulo={
+            tipoAccion === 'bloquear'
+              ? 'Bloquear cuenta'
+              : tipoAccion === 'desbloquear'
+                ? 'Desbloquear cuenta'
+                : 'Activar cuenta'
+          }
           mensaje={
             tipoAccion === 'bloquear'
               ? `¿Estás seguro de bloquear la cuenta de ${usuarioAccion.nombre} ${usuarioAccion.apellido}? El usuario no podrá iniciar sesión.`
-              : `¿Desbloquear la cuenta de ${usuarioAccion.nombre} ${usuarioAccion.apellido}? El usuario podrá volver a iniciar sesión.`
+              : tipoAccion === 'desbloquear'
+                ? `¿Desbloquear la cuenta de ${usuarioAccion.nombre} ${usuarioAccion.apellido}? El usuario podrá volver a iniciar sesión.`
+                : `¿Activar la cuenta de ${usuarioAccion.nombre} ${usuarioAccion.apellido}? El usuario podrá iniciar sesión inmediatamente.`
           }
-          labelConfirmar={tipoAccion === 'bloquear' ? 'Bloquear' : 'Desbloquear'}
+          labelConfirmar={
+            tipoAccion === 'bloquear'
+              ? 'Bloquear'
+              : tipoAccion === 'desbloquear'
+                ? 'Desbloquear'
+                : 'Activar'
+          }
           variante={tipoAccion === 'bloquear' ? 'peligro' : 'primario'}
           cargando={cargandoAccion}
           onConfirmar={confirmarAccion}

@@ -93,6 +93,18 @@ export default function Activar() {
       return
     }
 
+    // El usuario invitado ya fue pre-aprobado por el admin: marcamos la cuenta
+    // como activa con la edge function (la RLS y el trigger guard impiden que
+    // el propio usuario lo haga). Si esto falla, mostramos error pero seguimos
+    // permitiendo que reintente desde login (la edge function es idempotente).
+    const { error: aceptarError } = await supabase.functions.invoke('aceptar-invitacion', {
+      body: {},
+    })
+
+    if (aceptarError) {
+      setError('Tu contraseña fue actualizada, pero no pudimos activar la cuenta. Intenta iniciar sesión.')
+    }
+
     // Cierre local de sesión (limpia localStorage sin tocar servidor) — evita
     // el race donde GuestRoute ve la sesión activa y salta al dashboard.
     await supabase.auth.signOut({ scope: 'local' })
