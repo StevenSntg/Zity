@@ -1,64 +1,115 @@
-import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
-import zityLogo from '../assets/zity_logo.png'
+// HU-MANT-03 SPRINT-4
+// Vista principal del técnico: lista de solicitudes asignadas con filtros
+// por estado y prioridad, cards responsivas y drawer de detalle completo.
+// Reemplaza el placeholder anterior que mostraba solo un mensaje estático.
+
+import { useMemo, useState } from 'react'
+import TecnicoShell from '../components/tecnico/TecnicoShell'
+import FiltrosTecnico from '../components/tecnico/solicitudes/FiltrosTecnico'
+import CardSolicitudTecnico from '../components/tecnico/solicitudes/CardSolicitudTecnico'
+import DrawerDetalleTecnico from '../components/tecnico/solicitudes/DrawerDetalleTecnico'
+import { useSolicitudesTecnico, type FiltrosTecnico as FiltrosTecnicoType, type SolicitudAsignadaTecnico } from '../hooks/useSolicitudesTecnico'
+import { useFotosFirmadas } from '../hooks/useSolicitudes'
 
 export default function TecnicoDashboard() {
-  const { profile, signOut } = useAuth()
-  const navigate = useNavigate()
+  // HU-MANT-03 SPRINT-4 — Estado de filtros y solicitud seleccionada
+  const [filtros, setFiltros] = useState<FiltrosTecnicoType>({ estado: '', prioridad: '' })
+  const { solicitudes, loading, error, refetch } = useSolicitudesTecnico(filtros)
 
-  async function handleSignOut() {
-    await signOut()
-    navigate('/login', { replace: true })
-  }
+  // Fotos firmadas para todas las solicitudes visibles
+  const paths = useMemo(() => solicitudes.map(s => s.imagen_url), [solicitudes])
+  const fotosUrls = useFotosFirmadas(paths)
+
+  // Selección por id para sincronizar con refetch
+  const [idSeleccionada, setIdSeleccionada] = useState<string | null>(null)
+  const seleccionada: SolicitudAsignadaTecnico | null = useMemo(
+    () => solicitudes.find(s => s.id === idSeleccionada) ?? null,
+    [solicitudes, idSeleccionada],
+  )
+
+  const subtitulo = loading
+    ? 'Cargando…'
+    : `${solicitudes.length} solicitud${solicitudes.length !== 1 ? 'es' : ''} asignada${solicitudes.length !== 1 ? 's' : ''}`
 
   return (
-    <div className="min-h-screen bg-warm-50">
-      <header className="bg-white border-b border-warm-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src={zityLogo} alt="Zity" className="h-9 w-auto" />
-            <span className="text-xs font-semibold bg-success text-white px-2.5 py-1 rounded-full tracking-wider uppercase">
-              Técnico
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-primary-700">
-              {profile?.nombre} {profile?.apellido}
-            </span>
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-warm-400 hover:text-error transition-colors font-medium"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-      </header>
+    <TecnicoShell title="Mis solicitudes asignadas" subtitle={subtitulo}>
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="animate-fade-in">
-          <h2 className="font-display text-2xl font-semibold text-primary-900">
-            Mis tareas asignadas
-          </h2>
-          <p className="mt-2 text-warm-400">
-            Bienvenido, {profile?.nombre}. Aquí verás las solicitudes que te han sido asignadas.
-          </p>
+      {/* Error de carga */}
+      {error && (
+        <div className="mb-4 p-4 bg-error/10 border border-error/20 rounded-lg text-error text-sm flex items-start gap-2">
+          <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          {error}
+          <button onClick={refetch} className="ml-auto text-xs underline cursor-pointer">Reintentar</button>
         </div>
+      )}
 
-        <div className="mt-8 bg-white rounded-xl border border-warm-200 p-8 text-center animate-fade-in delay-2">
-          <div className="w-16 h-16 mx-auto bg-warm-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-warm-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.25 3.09a.75.75 0 01-1.08-.87l1.36-5.78L1.72 7.46a.75.75 0 01.43-1.32l5.93-.49 2.28-5.46a.75.75 0 011.28 0l2.28 5.46 5.93.49a.75.75 0 01.43 1.32l-4.73 4.15 1.36 5.78a.75.75 0 01-1.08.87l-5.25-3.09z" />
+      {/* Filtros */}
+      {/* HU-MANT-03 SPRINT-4 — Filtros por estado y prioridad */}
+      <div className="mb-4 animate-fade-in delay-1">
+        <FiltrosTecnico filtros={filtros} onChange={setFiltros} total={solicitudes.length} />
+      </div>
+
+      {/* Spinner de carga */}
+      {loading && (
+        <div className="flex justify-center py-16" data-testid="tecnico-loading">
+          <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Estado vacío */}
+      {/* HU-MANT-03 SPRINT-4 — Pantalla vacía amigable si no hay solicitudes */}
+      {!loading && solicitudes.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+          <div className="w-20 h-20 rounded-full bg-warm-100 flex items-center justify-center mb-5">
+            <svg className="w-9 h-9 text-warm-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
             </svg>
           </div>
-          <p className="text-warm-400">
-            No tienes solicitudes asignadas por el momento.
+          <p className="text-primary-800 font-medium text-lg">Sin solicitudes asignadas</p>
+          <p className="text-sm text-warm-400 mt-2 max-w-xs">
+            {filtros.estado || filtros.prioridad
+              ? 'No hay solicitudes con los filtros seleccionados.'
+              : 'Cuando un administrador te asigne una solicitud, aparecerá aquí.'}
           </p>
-          <p className="mt-2 text-warm-300 text-sm">
-            El módulo de tareas se habilitará en los próximos sprints.
-          </p>
+          {(filtros.estado || filtros.prioridad) && (
+            <button
+              onClick={() => setFiltros({ estado: '', prioridad: '' })}
+              className="mt-4 text-sm text-primary-600 underline cursor-pointer"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
-      </main>
-    </div>
+      )}
+
+      {/* Lista de cards */}
+      {/* HU-MANT-03 SPRINT-4 — Cards responsivas: columna en mobile, tabla opcional en desktop */}
+      {!loading && solicitudes.length > 0 && (
+        <div className="space-y-3 animate-fade-in delay-2">
+          {solicitudes.map(s => (
+            <CardSolicitudTecnico
+              key={s.id}
+              solicitud={s}
+              fotoUrl={s.imagen_url ? fotosUrls.get(s.imagen_url) : undefined}
+              onClick={() => setIdSeleccionada(s.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Drawer de detalle */}
+      {/* HU-MANT-03 SPRINT-4 — Panel lateral con detalle completo */}
+      {/* HU-MANT-04 SPRINT-4 — onEstadoActualizado refetch tras cambio de estado */}
+      {seleccionada && (
+        <DrawerDetalleTecnico
+          solicitud={seleccionada}
+          fotoUrl={seleccionada.imagen_url ? fotosUrls.get(seleccionada.imagen_url) : undefined}
+          onCerrar={() => setIdSeleccionada(null)}
+          onEstadoActualizado={refetch}
+        />
+      )}
+    </TecnicoShell>
   )
 }
