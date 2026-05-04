@@ -66,6 +66,10 @@ export type Solicitud = {
   imagen_url: string | null
   piso: string | null
   departamento: string | null
+  // HU-MANT-07 SPRINT-4 — Confirmación del residente y contador de rechazos
+  // Opcionales hasta que el admin ejecute la migración SQL en Supabase
+  confirmada_por_residente?: boolean
+  intentos_resolucion?: number
   created_at: string
   updated_at: string
 }

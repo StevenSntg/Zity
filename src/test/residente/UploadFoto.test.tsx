@@ -2,6 +2,20 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import UploadFoto from '../../components/residente/UploadFoto'
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// HU-MANT-06 SPRINT-4 — Mock de matchMedia para simular viewport
+function mockMatchMedia(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  })
+}
+
 beforeEach(() => {
   // jsdom no implementa createObjectURL; lo polificamos para evitar errores
   // al mostrar la preview.
@@ -17,7 +31,19 @@ beforeEach(() => {
       writable: true,
     })
   }
+  // Sin mock de matchMedia → isMobile = false (desktop, comportamiento original)
+  // Los tests que necesitan móvil llaman mockMatchMedia(true) explícitamente.
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  })
 })
+
+// ─── Tests originales (deben seguir pasando sin cambios) ─────────────────────
 
 describe('UploadFoto', () => {
   it('muestra el placeholder cuando no hay archivo', () => {
@@ -88,5 +114,62 @@ describe('UploadFoto', () => {
 
     expect(screen.getByRole('button', { name: /quitar/i })).toBeDisabled()
     expect(screen.getByRole('button', { name: /cambiar/i })).toBeDisabled()
+  })
+
+  // ─── Tests nuevos HU-MANT-06 ───────────────────────────────────────────────
+
+  it('HU-MANT-06: en desktop (matchMedia=false) NO muestra el botón Tomar foto', () => {
+    // matchMedia ya mockeado como matches:false en beforeEach
+    render(<UploadFoto archivo={null} onCambio={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: /tomar foto/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /elegir archivo/i })).toBeInTheDocument()
+  })
+
+  it('HU-MANT-06: en móvil (matchMedia=true) muestra el botón Tomar foto como CTA principal', () => {
+    mockMatchMedia(true)
+    render(<UploadFoto archivo={null} onCambio={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /tomar foto/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /elegir archivo/i })).toBeInTheDocument()
+  })
+
+  it('HU-MANT-06: el input de cámara tiene atributo capture=environment', () => {
+    render(<UploadFoto archivo={null} onCambio={vi.fn()} />)
+    const inputCamara = screen.getByLabelText('Tomar foto con cámara') as HTMLInputElement
+    expect(inputCamara).toHaveAttribute('capture', 'environment')
+  })
+
+  it('HU-MANT-06: foto tomada desde cámara pasa la misma validación (JPEG válido)', () => {
+    const onCambio = vi.fn()
+    render(<UploadFoto archivo={null} onCambio={onCambio} />)
+
+    const inputCamara = screen.getByLabelText('Tomar foto con cámara') as HTMLInputElement
+    const foto = new File(['x'], 'camara.jpg', { type: 'image/jpeg' })
+    fireEvent.change(inputCamara, { target: { files: [foto] } })
+
+    expect(onCambio).toHaveBeenCalledWith(foto)
+  })
+
+  it('HU-MANT-06: foto de cámara mayor a 5 MB es rechazada con mensaje claro', () => {
+    const onCambio = vi.fn()
+    render(<UploadFoto archivo={null} onCambio={onCambio} />)
+
+    const inputCamara = screen.getByLabelText('Tomar foto con cámara') as HTMLInputElement
+    const pesada = new File([new Uint8Array(6 * 1024 * 1024)], 'big-cam.jpg', { type: 'image/jpeg' })
+    fireEvent.change(inputCamara, { target: { files: [pesada] } })
+
+    expect(onCambio).toHaveBeenCalledWith(null)
+    expect(screen.getByRole('alert').textContent).toMatch(/5 MB/)
+  })
+
+  it('HU-MANT-06: foto de cámara con formato inválido es rechazada', () => {
+    const onCambio = vi.fn()
+    render(<UploadFoto archivo={null} onCambio={onCambio} />)
+
+    const inputCamara = screen.getByLabelText('Tomar foto con cámara') as HTMLInputElement
+    const invalid = new File(['x'], 'video.mp4', { type: 'video/mp4' })
+    fireEvent.change(inputCamara, { target: { files: [invalid] } })
+
+    expect(onCambio).toHaveBeenCalledWith(null)
+    expect(screen.getByRole('alert').textContent).toMatch(/JPEG|PNG/)
   })
 })

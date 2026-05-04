@@ -1,13 +1,16 @@
 // HU-MANT-02 SPRINT-4
 import { useState } from 'react'
 import { useModalBehavior } from '../../../hooks/useModalBehavior'
-import { useHistorialSolicitud, type SolicitudConResidente } from '../../../hooks/useSolicitudesAdmin'
+import { type SolicitudConResidente } from '../../../hooks/useSolicitudesAdmin'
 import { actualizarPrioridadSolicitud } from '../../../hooks/useSolicitudes'
 import { labelCategoria, labelTipo } from '../../../lib/solicitudes'
 import { tiempoTranscurrido } from '../../../lib/format'
 import { BadgeEstadoSolicitud, BadgePrioridad } from './BadgeSolicitud'
 // HU-MANT-02 SPRINT-4 — Modal de asignación de técnico
 import ModalAsignarTecnico from './ModalAsignarTecnico'
+// HU-MANT-05 SPRINT-4 — Componente reutilizable de historial de estados
+import HistorialEstados from '../../shared/HistorialEstados'
+import { useAuth } from '../../../contexts/AuthContext'
 
 type Props = {
   solicitud: SolicitudConResidente
@@ -19,7 +22,8 @@ type Props = {
 }
 
 export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPrioridadActualizada, onAsignacionRealizada }: Props) {
-  const { historial, loading: cargandoHistorial, refetch: refetchHistorial } = useHistorialSolicitud(solicitud.id)
+  // HU-MANT-05 SPRINT-4 — userId para la privacidad del autor en el historial
+  const { user } = useAuth()
 
   // La prioridad la leemos directamente de la prop. Tras un cambio exitoso,
   // disparamos onPrioridadActualizada() — el padre hace refetch y nos vuelve
@@ -43,9 +47,6 @@ export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPriori
       return
     }
     onPrioridadActualizada()
-    // El trigger BD añadió una entrada en historial_estados. Refrescamos para
-    // que el admin vea el cambio sin reabrir el drawer.
-    refetchHistorial()
   }
 
   return (
@@ -198,36 +199,16 @@ export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPriori
           )}
 
           {/* Historial de estados */}
+          {/* HU-MANT-05 SPRINT-4 — Componente reutilizable con autor, badges, paginación */}
           <div className="border-t border-warm-200 pt-5">
             <p className="text-[0.6875rem] uppercase tracking-wider text-warm-400 mb-3">
               Historial de estados
             </p>
-            {cargandoHistorial ? (
-              <p className="text-xs text-warm-400">Cargando historial…</p>
-            ) : historial.length === 0 ? (
-              <p className="text-xs text-warm-400">Sin cambios registrados todavía.</p>
-            ) : (
-              <ol className="space-y-3">
-                {historial.map(h => (
-                  <li key={h.id} className="flex gap-3">
-                    <div className="shrink-0 mt-1 w-2 h-2 rounded-full bg-primary-400" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-primary-900">
-                        {h.estado_anterior
-                          ? <>De <strong className="capitalize">{h.estado_anterior}</strong> a <strong className="capitalize">{h.estado_nuevo}</strong></>
-                          : <>Estado <strong className="capitalize">{h.estado_nuevo}</strong></>}
-                      </p>
-                      {h.nota && (
-                        <p className="text-xs text-warm-400 mt-0.5">{h.nota}</p>
-                      )}
-                      <p className="text-[0.6875rem] text-warm-400 mt-0.5">
-                        {tiempoTranscurrido(h.created_at)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <HistorialEstados
+              solicitudId={solicitud.id}
+              rolObservador="admin"
+              userId={user?.id ?? ''}
+            />
           </div>
         </div>
       </aside>
