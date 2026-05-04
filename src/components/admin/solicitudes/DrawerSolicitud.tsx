@@ -1,3 +1,4 @@
+// HU-MANT-02 SPRINT-4
 import { useState } from 'react'
 import { useModalBehavior } from '../../../hooks/useModalBehavior'
 import { useHistorialSolicitud, type SolicitudConResidente } from '../../../hooks/useSolicitudesAdmin'
@@ -5,15 +6,19 @@ import { actualizarPrioridadSolicitud } from '../../../hooks/useSolicitudes'
 import { labelCategoria, labelTipo } from '../../../lib/solicitudes'
 import { tiempoTranscurrido } from '../../../lib/format'
 import { BadgeEstadoSolicitud, BadgePrioridad } from './BadgeSolicitud'
+// HU-MANT-02 SPRINT-4 — Modal de asignación de técnico
+import ModalAsignarTecnico from './ModalAsignarTecnico'
 
 type Props = {
   solicitud: SolicitudConResidente
   fotoUrl: string | undefined
   onCerrar: () => void
   onPrioridadActualizada: () => void
+  // HU-MANT-02 SPRINT-4 — Callback que dispara refetch tras asignar/reasignar
+  onAsignacionRealizada: () => void
 }
 
-export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPrioridadActualizada }: Props) {
+export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPrioridadActualizada, onAsignacionRealizada }: Props) {
   const { historial, loading: cargandoHistorial, refetch: refetchHistorial } = useHistorialSolicitud(solicitud.id)
 
   // La prioridad la leemos directamente de la prop. Tras un cambio exitoso,
@@ -22,6 +27,8 @@ export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPriori
   const prioridadActual = solicitud.prioridad
   const [actualizando, setActualizando] = useState(false)
   const [errorPrioridad, setErrorPrioridad] = useState<string | null>(null)
+  // HU-MANT-02 SPRINT-4 — Controla la apertura del modal de asignación
+  const [modalAsignarAbierto, setModalAsignarAbierto] = useState(false)
 
   useModalBehavior(onCerrar, actualizando)
 
@@ -152,7 +159,27 @@ export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPriori
             )}
           </div>
 
-          {/* Datos del residente */}
+          {/* ── Asignar / Reasignar técnico ── */}
+          {/* HU-MANT-02 SPRINT-4 — Botón Asignar si estado=pendiente, Reasignar si ya tiene técnico */}
+          <div className="border-t border-warm-200 pt-5">
+            <p className="text-[0.6875rem] uppercase tracking-wider text-warm-400 mb-2">
+              {solicitud.estado === 'pendiente' ? 'Asignar técnico' : 'Técnico asignado'}
+            </p>
+            <button
+              id="btn-abrir-asignar-tecnico"
+              type="button"
+              onClick={() => setModalAsignarAbierto(true)}
+              disabled={actualizando}
+              className="w-full min-h-11 flex items-center justify-center gap-2 rounded-lg border-[1.5px] border-primary-400 text-primary-700 text-sm font-medium hover:bg-primary-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              {solicitud.estado === 'pendiente' ? 'Asignar técnico' : 'Reasignar técnico'}
+            </button>
+          </div>
+
+
           {solicitud.residente && (
             <div className="border-t border-warm-200 pt-5">
               <p className="text-[0.6875rem] uppercase tracking-wider text-warm-400 mb-2">
@@ -204,6 +231,19 @@ export default function DrawerSolicitud({ solicitud, fotoUrl, onCerrar, onPriori
           </div>
         </div>
       </aside>
+
+      {/* HU-MANT-02 SPRINT-4 — Modal de asignación, renderizado sobre el drawer */}
+      {modalAsignarAbierto && (
+        <ModalAsignarTecnico
+          solicitud={solicitud}
+          fotoUrl={fotoUrl}
+          onCerrar={() => setModalAsignarAbierto(false)}
+          onAsignada={() => {
+            setModalAsignarAbierto(false)
+            onAsignacionRealizada()
+          }}
+        />
+      )}
     </div>
   )
 }

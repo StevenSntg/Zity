@@ -48,12 +48,14 @@ export default function AdminSolicitudes() {
         />
       </div>
 
+      {/* HU-MANT-02 SPRINT-4 — onAsignacionRealizada refresca la lista tras asignar/reasignar */}
       {seleccionada && (
         <DrawerSolicitud
           solicitud={seleccionada}
           fotoUrl={seleccionada.imagen_url ? fotosUrls.get(seleccionada.imagen_url) : undefined}
           onCerrar={() => setIdSeleccionada(null)}
           onPrioridadActualizada={refetch}
+          onAsignacionRealizada={refetch}
         />
       )}
     </AdminShell>
