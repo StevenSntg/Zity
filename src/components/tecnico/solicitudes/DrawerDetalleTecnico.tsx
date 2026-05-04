@@ -1,16 +1,15 @@
 // HU-MANT-03 SPRINT-4
-// Panel lateral (drawer) que muestra el detalle completo de una solicitud
-// asignada al técnico: foto en grande, descripción completa, datos del
-// residente (nombre, depto, teléfono), nota de asignación del admin e
-// historial de estados.
 // HU-MANT-04 SPRINT-4 — Añade sección de actualización de estado
+// HU-MANT-05 SPRINT-4 — Reemplaza historial inline por componente reutilizable
 
 import { useModalBehavior } from '../../../hooks/useModalBehavior'
-import { useHistorialSolicitud } from '../../../hooks/useSolicitudesAdmin'
 import { labelCategoria, labelTipo } from '../../../lib/solicitudes'
 import { tiempoTranscurrido } from '../../../lib/format'
 // HU-MANT-04 SPRINT-4 — Sección de actualización de estado del técnico
 import SeccionActualizarEstado from './SeccionActualizarEstado'
+// HU-MANT-05 SPRINT-4 — Componente reutilizable de historial
+import HistorialEstados from '../../shared/HistorialEstados'
+import { useAuth } from '../../../contexts/AuthContext'
 import type { SolicitudAsignadaTecnico } from '../../../hooks/useSolicitudesTecnico'
 
 // ─── Badges inline ───────────────────────────────────────────────────────────
@@ -57,8 +56,8 @@ type Props = {
 }
 
 export default function DrawerDetalleTecnico({ solicitud, fotoUrl, onCerrar, onEstadoActualizado }: Props) {
-  // HU-MANT-03 SPRINT-4 — Historial de estados de la solicitud
-  const { historial, loading: cargandoHistorial } = useHistorialSolicitud(solicitud.id)
+  // HU-MANT-05 SPRINT-4 — userId para la privacidad del autor en el historial
+  const { user } = useAuth()
 
   useModalBehavior(onCerrar, false)
 
@@ -201,37 +200,16 @@ export default function DrawerDetalleTecnico({ solicitud, fotoUrl, onCerrar, onE
           />
 
           {/* Historial de estados */}
-          {/* HU-MANT-03 SPRINT-4 — Historial de cambios de estado */}
+          {/* HU-MANT-05 SPRINT-4 — Componente reutilizable con autor, badges, paginación */}
           <div className="border-t border-warm-200 pt-5">
             <p className="text-[0.6875rem] uppercase tracking-wider text-warm-400 mb-3">
               Historial de estados
             </p>
-            {cargandoHistorial ? (
-              <p className="text-xs text-warm-400">Cargando historial…</p>
-            ) : historial.length === 0 ? (
-              <p className="text-xs text-warm-400">Sin cambios registrados todavía.</p>
-            ) : (
-              <ol className="space-y-3">
-                {historial.map(h => (
-                  <li key={h.id} className="flex gap-3">
-                    <div className="shrink-0 mt-1 w-2 h-2 rounded-full bg-primary-400" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-primary-900">
-                        {h.estado_anterior
-                          ? <><span className="capitalize font-medium">{h.estado_anterior}</span> → <span className="capitalize font-medium">{h.estado_nuevo}</span></>
-                          : <><span className="capitalize font-medium">{h.estado_nuevo}</span></>}
-                      </p>
-                      {h.nota && (
-                        <p className="text-xs text-warm-400 mt-0.5">{h.nota}</p>
-                      )}
-                      <p className="text-[0.6875rem] text-warm-400 mt-0.5">
-                        {tiempoTranscurrido(h.created_at)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <HistorialEstados
+              solicitudId={solicitud.id}
+              rolObservador="tecnico"
+              userId={user?.id ?? ''}
+            />
           </div>
         </div>
       </aside>

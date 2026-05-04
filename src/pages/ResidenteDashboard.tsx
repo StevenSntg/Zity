@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { useSolicitudes, useFotosFirmadas } from '../hooks/useSolicitudes'
 import ModalNuevaSolicitud from '../components/residente/ModalNuevaSolicitud'
+// HU-MANT-05 SPRINT-4 — Drawer de detalle con historial para el residente
+import DrawerDetalleSolicitudResidente from '../components/residente/DrawerDetalleSolicitudResidente'
 import { labelCategoria, labelTipo } from '../lib/solicitudes'
 import { tiempoTranscurrido } from '../lib/format'
 import zityLogo from '../assets/zity_logo.png'
@@ -30,9 +32,16 @@ export default function ResidenteDashboard() {
 
   const [mostrarModal, setMostrarModal] = useState(false)
   const [confirmacionId, setConfirmacionId] = useState<string | null>(null)
+  // HU-MANT-05 SPRINT-4 — Solicitud seleccionada para abrir el drawer de detalle
+  const [idSeleccionada, setIdSeleccionada] = useState<string | null>(null)
 
   const { solicitudes, loading, error, refetch } = useSolicitudes({ residente_id: user?.id })
   const fotosUrls = useFotosFirmadas(solicitudes.map(s => s.imagen_url))
+
+  const seleccionada: Solicitud | null = useMemo(
+    () => solicitudes.find(s => s.id === idSeleccionada) ?? null,
+    [solicitudes, idSeleccionada],
+  )
 
   async function handleSignOut() {
     await signOut()
@@ -139,7 +148,8 @@ export default function ResidenteDashboard() {
               {solicitudes.map(s => (
                 <li
                   key={s.id}
-                  className="bg-white rounded-xl border border-warm-200 overflow-hidden hover:border-primary-300 hover:shadow-sm transition-all"
+                  className="bg-white rounded-xl border border-warm-200 overflow-hidden hover:border-primary-300 hover:shadow-sm transition-all cursor-pointer"
+                  onClick={() => setIdSeleccionada(s.id)}
                 >
                   {s.imagen_url && (
                     <div className="aspect-[16/9] bg-warm-100 overflow-hidden">
@@ -190,6 +200,15 @@ export default function ResidenteDashboard() {
         <ModalNuevaSolicitud
           onCreada={handleCreada}
           onCerrar={() => setMostrarModal(false)}
+        />
+      )}
+
+      {/* HU-MANT-05 SPRINT-4 — Drawer de detalle con historial de estados para el residente */}
+      {seleccionada && (
+        <DrawerDetalleSolicitudResidente
+          solicitud={seleccionada}
+          fotoUrl={seleccionada.imagen_url ? fotosUrls.get(seleccionada.imagen_url) : undefined}
+          onCerrar={() => setIdSeleccionada(null)}
         />
       )}
     </div>
