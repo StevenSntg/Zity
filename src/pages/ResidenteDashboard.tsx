@@ -5,6 +5,9 @@ import { useSolicitudes, useFotosFirmadas } from '../hooks/useSolicitudes'
 import ModalNuevaSolicitud from '../components/residente/ModalNuevaSolicitud'
 // HU-MANT-05 SPRINT-4 — Drawer de detalle con historial para el residente
 import DrawerDetalleSolicitudResidente from '../components/residente/DrawerDetalleSolicitudResidente'
+// HU-MANT-07 SPRINT-4 — Sección de confirmación de solicitudes resueltas
+import { useSolicitudesPendientesConfirmacion } from '../hooks/useConfirmarSolicitud'
+import CardConfirmacion from '../components/residente/solicitudes/CardConfirmacion'
 import { labelCategoria, labelTipo } from '../lib/solicitudes'
 import { tiempoTranscurrido } from '../lib/format'
 import zityLogo from '../assets/zity_logo.png'
@@ -37,6 +40,18 @@ export default function ResidenteDashboard() {
 
   const { solicitudes, loading, error, refetch } = useSolicitudes({ residente_id: user?.id })
   const fotosUrls = useFotosFirmadas(solicitudes.map(s => s.imagen_url))
+
+  // HU-MANT-07 SPRINT-4 — Solicitudes resueltas pendientes de confirmación
+  const {
+    solicitudes: pendientesConfirmacion,
+    refetch: refetchPendientes,
+  } = useSolicitudesPendientesConfirmacion(user?.id)
+  const fotosPendientes = useFotosFirmadas(pendientesConfirmacion.map(s => s.imagen_url))
+
+  function handleActualizadaPendiente() {
+    refetchPendientes()
+    refetch()
+  }
 
   const seleccionada: Solicitud | null = useMemo(
     () => solicitudes.find(s => s.id === idSeleccionada) ?? null,
@@ -115,6 +130,32 @@ export default function ResidenteDashboard() {
           <div className="mt-6 p-4 bg-error/10 border border-error/20 rounded-lg text-error text-sm">
             {error}
           </div>
+        )}
+
+        {/* HU-MANT-07 SPRINT-4 — Sección "Pendientes de tu confirmación" */}
+        {pendientesConfirmacion.length > 0 && (
+          <section className="mt-8 animate-fade-in">
+            <h3 className="font-display text-lg sm:text-xl font-semibold text-error mb-1">
+              Pendientes de tu confirmación
+              <span className="ml-2 text-sm font-normal text-warm-400">
+                ({pendientesConfirmacion.length})
+              </span>
+            </h3>
+            <p className="text-sm text-warm-400 mb-4">
+              Revisa si el trabajo fue realizado correctamente y confirma o rechaza la solución.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pendientesConfirmacion.map(s => (
+                <CardConfirmacion
+                  key={s.id}
+                  solicitud={s}
+                  fotoUrl={s.imagen_url ? fotosPendientes.get(s.imagen_url) : undefined}
+                  notaTecnico={null}
+                  onActualizada={handleActualizadaPendiente}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         <section className="mt-8 animate-fade-in delay-2">
