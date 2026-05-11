@@ -8,6 +8,16 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // En CI no existe .env, así que sin estos defaults el módulo
+    // src/lib/supabase.ts llama a createClient(undefined, …) y todos los
+    // tests que importen (directa o transitivamente) ese módulo fallan al
+    // cargar. Los tests reales mockean supabase via vi.mock, por lo que
+    // estos valores nunca se usan para hacer una llamada de red — solo
+    // permiten que createClient construya el cliente al cargar el módulo.
+    env: {
+      VITE_SUPABASE_URL: 'http://localhost:54321',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key-not-real',
+    },
     // Sprint 4 (DoD v2): gate de cobertura ≥ 60 % en el módulo core de solicitudes.
     // El reporter `text` imprime el resumen en la salida del CI; `lcov` es el formato
     // que consumen herramientas externas (Codecov, etc.).
