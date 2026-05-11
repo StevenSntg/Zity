@@ -23,5 +23,19 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm run test:run
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Sprint 4 (DoD v2): coverage gate. El threshold (>= 60% en
+      # src/lib/solicitudes.ts) se configura en vite.config.ts. Si la
+      # cobertura baja del umbral, Vitest exit code != 0 y el job falla.
+      - name: Tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7

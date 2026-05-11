@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Reportes de cobertura de tests (Vitest v8) — se generan localmente y en CI
+coverage
+
 # Environment variables
 .env
 .env.local

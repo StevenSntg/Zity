@@ -1,4 +1,9 @@
-import type { TipoSolicitud, CategoriaSolicitud } from '../types/database'
+import { supabase } from './supabase'
+import type {
+  TipoSolicitud,
+  CategoriaSolicitud,
+  EstadoSolicitud,
+} from '../types/database'
 
 // Catálogo de tipos y categorías compartido entre formulario y filtros del admin.
 // Si se cambia, actualizar los CHECK constraints en la BD para mantenerlos
@@ -80,4 +85,130 @@ export function pathFotoSolicitud(residenteId: string, solicitudId: string, file
     .replace(/^-|-$/g, '')
     || 'foto'
   return `${residenteId}/${solicitudId}/${timestamp}_${nombreSeguro}`
+}
+
+// =============================================================================
+// Helper centralizado de cambio de estado
+// =============================================================================
+// Sprint 4 — Toda transición de estado de una solicitud debe pasar por esta
+// función. Garantiza que las 3 escrituras (UPDATE solicitudes, INSERT
+// historial_estados, INSERT audit_log) se ejecutan de forma uniforme, con la
+// misma forma de error y los mismos campos de auditoría.
+//
+// Diseño:
+//   1. UPDATE solicitudes.estado (+ camposExtraSolicitud) — si falla, abortamos.
+//   2. INSERT historial_estados — si falla devolvemos error explícito; el
+//      estado ya cambió, así que el llamador debe alertar al usuario.
+//   3. INSERT audit_log — fire-and-forget: el cambio de estado y el historial
+//      ya están escritos; un fallo aquí degrada la observabilidad pero no
+//      bloquea la operación. La RLS exige usuario_id = auth.uid() y
+//      resultado ∈ {exitoso, fallido}.
+
+export type CambioEstadoInput = {
+  /** UUID de la solicitud a modificar */
+  solicitudId: string
+  /** Estado actual (usado para historial_estados.estado_anterior) */
+  estadoAnterior: EstadoSolicitud
+  /** Estado destino (UPDATE solicitudes.estado) */
+  estadoNuevo: EstadoSolicitud
+  /** Texto que se guarda en historial_estados.nota; null si no aplica */
+  nota: string | null
+  /** UUID del usuario que dispara el cambio (auth.uid()) */
+  usuarioId: string
+  /** Nombre de la acción a registrar en audit_log.accion */
+  accionAudit: string
+  /** Detalles JSON adicionales para audit_log.detalles */
+  detallesAudit?: Record<string, unknown>
+  /**
+   * Campos adicionales a incluir en el UPDATE de solicitudes. Útil para
+   * HU-MANT-07 (confirmada_por_residente, intentos_resolucion). Si está vacío,
+   * solo se actualiza `estado`.
+   */
+  camposExtraSolicitud?: Record<string, unknown>
+}
+
+export type ResultadoCambioEstado =
+  | { ok: true }
+  | { ok: false; error: string }
+
+/**
+ * Sprint 4 — Helper centralizado de transición de estado para solicitudes.
+ *
+ * Encapsula el patrón de 3 escrituras (estado + historial + audit) que se
+ * repetía en useAsignarTecnico, useActualizarEstadoTecnico y
+ * useConfirmarSolicitud. Devuelve un Result discriminado para que el llamador
+ * pueda mostrar mensajes precisos al usuario.
+ *
+ * Reglas de fallo:
+ *   - Si UPDATE solicitudes falla → { ok: false }. Nada se escribe.
+ *   - Si INSERT historial falla → { ok: false } pero el estado YA cambió.
+ *     El llamador debe informarlo al usuario para que pueda reintentar la
+ *     escritura del historial manualmente si fuera necesario.
+ *   - Si INSERT audit_log falla → ignoramos el error (fire-and-forget).
+ */
+export async function cambiarEstadoSolicitud(
+  input: CambioEstadoInput,
+): Promise<ResultadoCambioEstado> {
+  const {
+    solicitudId,
+    estadoAnterior,
+    estadoNuevo,
+    nota,
+    usuarioId,
+    accionAudit,
+    detallesAudit,
+    camposExtraSolicitud,
+  } = input
+
+  // 1) UPDATE solicitudes.estado (+ campos extra)
+  const updatePayload: Record<string, unknown> = {
+    estado: estadoNuevo,
+    ...(camposExtraSolicitud ?? {}),
+  }
+
+  const { error: errorUpdate } = await supabase
+    .from('solicitudes')
+    .update(updatePayload)
+    .eq('id', solicitudId)
+
+  if (errorUpdate) {
+    return { ok: false, error: errorUpdate.message }
+  }
+
+  // 2) INSERT historial_estados — fallo aquí significa que el estado cambió
+  //    pero no quedó registrado. Reportamos para que el usuario reintente.
+  const { error: errorHistorial } = await supabase
+    .from('historial_estados')
+    .insert({
+      solicitud_id: solicitudId,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: estadoNuevo,
+      cambiado_por: usuarioId,
+      nota: nota?.trim() || null,
+    })
+
+  if (errorHistorial) {
+    return {
+      ok: false,
+      error: `Estado actualizado, pero no se pudo registrar en el historial: ${errorHistorial.message}`,
+    }
+  }
+
+  // 3) INSERT audit_log (fire-and-forget)
+  //    Detalles entran en columna jsonb `detalles`; `resultado` queda en
+  //    'exitoso' (la policy WITH CHECK exige uno del conjunto cerrado).
+  await supabase.from('audit_log').insert({
+    usuario_id: usuarioId,
+    accion: accionAudit,
+    entidad: 'solicitudes',
+    entidad_id: solicitudId,
+    detalles: {
+      estado_anterior: estadoAnterior,
+      estado_nuevo: estadoNuevo,
+      ...(detallesAudit ?? {}),
+    },
+    resultado: 'exitoso',
+  })
+
+  return { ok: true }
 }

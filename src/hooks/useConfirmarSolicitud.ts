@@ -1,10 +1,18 @@
 // HU-MANT-07 SPRINT-4
 // Lógica de confirmación/rechazo de solicitudes resueltas por el residente.
-// Flujo confirmar: UPDATE estado='cerrada' + confirmada_por_residente=true + historial + audit_log
-// Flujo rechazar: UPDATE estado='en_progreso' + intentos_resolucion+=1 + historial + audit_log
-//   Si intentos_resolucion >= 3 tras el rechazo: UPDATE estado='pendiente' (escalada)
+// Toda transición pasa por el helper centralizado `cambiarEstadoSolicitud()`
+// que orquesta UPDATE + historial + audit.
+//
+// Flujos:
+//   confirmar  : estado='cerrada', confirmada_por_residente=true
+//   rechazar   : estado='en_progreso', intentos_resolucion+=1
+//   escalada   : si intentos_resolucion >= MAX_INTENTOS_RESOLUCION tras el
+//                rechazo, el estado pasa a 'pendiente' (vuelve al admin).
 
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { cambiarEstadoSolicitud } from '../lib/solicitudes'
+import type { Solicitud } from '../types/database'
 
 // HU-MANT-07 SPRINT-4 — Umbral de escalada al admin
 export const MAX_INTENTOS_RESOLUCION = 3
@@ -28,46 +36,19 @@ export async function confirmarSolicitud(
   solicitudId: string,
   residenteId: string,
 ): Promise<ResultadoConfirmacion> {
-  // 1. Actualizar estado
-  const { error: updateError } = await supabase
-    .from('solicitudes')
-    .update({
-      estado: 'cerrada',
-      confirmada_por_residente: true,
-    })
-    .eq('id', solicitudId)
-    .eq('residente_id', residenteId) // doble check con RLS
-
-  if (updateError) return { ok: false, error: updateError.message }
-
-  // 2. Historial
-  const { error: histError } = await supabase
-    .from('historial_estados')
-    .insert({
-      solicitud_id: solicitudId,
-      estado_anterior: 'resuelta',
-      estado_nuevo: 'cerrada',
-      cambiado_por: residenteId,
-      nota: 'Residente confirmó la solución.',
-    })
-
-  if (histError) {
-    return {
-      ok: false,
-      error: `Estado actualizado, pero no se pudo registrar historial: ${histError.message}`,
-    }
-  }
-
-  // 3. Audit log (fire-and-forget)
-  await supabase.from('audit_log').insert({
-    usuario_id: residenteId,
-    accion: 'confirmar_solicitud',
-    entidad: 'solicitudes',
-    entidad_id: solicitudId,
-    resultado: JSON.stringify({ estado_nuevo: 'cerrada' }),
+  const resultado = await cambiarEstadoSolicitud({
+    solicitudId,
+    estadoAnterior: 'resuelta',
+    estadoNuevo: 'cerrada',
+    nota: 'Residente confirmó la solución.',
+    usuarioId: residenteId,
+    accionAudit: 'confirmar_solicitud',
+    camposExtraSolicitud: { confirmada_por_residente: true },
   })
 
-  return { ok: true }
+  return resultado.ok
+    ? { ok: true }
+    : { ok: false, error: resultado.error }
 }
 
 // ─── Rechazar solución ───────────────────────────────────────────────────────
@@ -107,54 +88,27 @@ export async function rechazarSolicitud(
   const escalada = nuevosIntentos >= MAX_INTENTOS_RESOLUCION
   const estadoNuevo = escalada ? 'pendiente' : 'en_progreso'
 
-  // 1. Actualizar estado e intentos
-  const { error: updateError } = await supabase
-    .from('solicitudes')
-    .update({
-      estado: estadoNuevo,
-      intentos_resolucion: nuevosIntentos,
-    })
-    .eq('id', solicitudId)
-    .eq('residente_id', residenteId)
+  const notaHistorial = escalada
+    ? `[ESCALADA] Rechazo #${nuevosIntentos}: ${notaTrim}`
+    : `Rechazo #${nuevosIntentos}: ${notaTrim}`
 
-  if (updateError) return { ok: false, error: updateError.message }
-
-  // 2. Historial con nota de rechazo
-  const { error: histError } = await supabase
-    .from('historial_estados')
-    .insert({
-      solicitud_id: solicitudId,
-      estado_anterior: 'resuelta',
-      estado_nuevo: estadoNuevo,
-      cambiado_por: residenteId,
-      nota: escalada
-        ? `[ESCALADA] Rechazo #${nuevosIntentos}: ${notaTrim}`
-        : `Rechazo #${nuevosIntentos}: ${notaTrim}`,
-    })
-
-  if (histError) {
-    return {
-      ok: false,
-      error: `Estado actualizado, pero no se pudo registrar historial: ${histError.message}`,
-    }
-  }
-
-  // 3. Audit log (fire-and-forget)
-  await supabase.from('audit_log').insert({
-    usuario_id: residenteId,
-    accion: escalada ? 'escalada_solicitud' : 'rechazar_solucion',
-    entidad: 'solicitudes',
-    entidad_id: solicitudId,
-    resultado: JSON.stringify({ intentos: nuevosIntentos, escalada, estado_nuevo: estadoNuevo }),
+  const resultado = await cambiarEstadoSolicitud({
+    solicitudId,
+    estadoAnterior: 'resuelta',
+    estadoNuevo,
+    nota: notaHistorial,
+    usuarioId: residenteId,
+    accionAudit: escalada ? 'escalada_solicitud' : 'rechazar_solucion',
+    detallesAudit: { intentos: nuevosIntentos, escalada },
+    camposExtraSolicitud: { intentos_resolucion: nuevosIntentos },
   })
 
-  return { ok: true, escalada }
+  return resultado.ok
+    ? { ok: true, escalada }
+    : { ok: false, error: resultado.error, escalada }
 }
 
 // ─── Hook de solicitudes pendientes de confirmación ─────────────────────────
-
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { Solicitud } from '../types/database'
 
 const COLS = `
   id, codigo, residente_id, tipo, categoria, descripcion,

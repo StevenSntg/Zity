@@ -8,5 +8,31 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // Sprint 4 (DoD v2): gate de cobertura ≥ 60 % en el módulo core de solicitudes.
+    // El reporter `text` imprime el resumen en la salida del CI; `lcov` es el formato
+    // que consumen herramientas externas (Codecov, etc.).
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/main.tsx',
+        'src/vite-env.d.ts',
+        'src/types/**',
+      ],
+      thresholds: {
+        // El gate sólo aplica al módulo principal del Sprint 4 (helper centralizado
+        // + utilidades de solicitudes). Si la cobertura baja del 60 % el CI falla.
+        'src/lib/solicitudes.ts': {
+          lines: 60,
+          statements: 60,
+          functions: 60,
+          branches: 60,
+        },
+      },
+    },
   },
 })

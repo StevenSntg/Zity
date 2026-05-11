@@ -7,7 +7,7 @@
 //   - Textarea de nota de asignación (máx. 300 caracteres con contador)
 //   - Botón "Asignar" o "Reasignar" según el estado actual de la solicitud
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useModalBehavior } from '../../../hooks/useModalBehavior'
 import {
   useTecnicosActivos,
@@ -37,24 +37,23 @@ export default function ModalAsignarTecnico({
   const { user } = useAuth()
   const { grupos, loading: cargandoTecnicos, error: errorTecnicos } = useTecnicosActivos()
 
-  const [tecnicoId, setTecnicoId] = useState('')
+  // tecnicoIdSeleccionado guarda SOLO la elección explícita del admin (vacío
+  // antes de que toque el select). Para evitar un useEffect que llame
+  // setState cuando los grupos cargan (cascading render), derivamos el id
+  // efectivo: si el admin aún no eligió, usamos el primer técnico disponible.
+  const [tecnicoIdSeleccionado, setTecnicoIdSeleccionado] = useState('')
   const [nota, setNota] = useState('')
   const [asignando, setAsignando] = useState(false)
   const [errorAsignacion, setErrorAsignacion] = useState<string | null>(null)
 
   useModalBehavior(onCerrar, asignando)
 
+  const tecnicoId = tecnicoIdSeleccionado || grupos[0]?.tecnicos[0]?.id || ''
+
   // Determinar empresa del técnico seleccionado para el payload
   const tecnicoSeleccionado = grupos
     .flatMap(g => g.tecnicos)
     .find(t => t.id === tecnicoId)
-
-  // Pre-seleccionar el primer técnico disponible cuando carguen los datos
-  useEffect(() => {
-    if (!tecnicoId && grupos.length > 0 && grupos[0].tecnicos.length > 0) {
-      setTecnicoId(grupos[0].tecnicos[0].id)
-    }
-  }, [grupos, tecnicoId])
 
   const esReasignacion = solicitud.estado !== 'pendiente'
 
@@ -63,13 +62,17 @@ export default function ModalAsignarTecnico({
     setAsignando(true)
     setErrorAsignacion(null)
 
-    // HU-MANT-02 SPRINT-4 — Ejecutar asignación con rollback automático
+    // HU-MANT-02 SPRINT-4 — Ejecutar asignación con rollback automático.
+    // Pasamos estadoActual para que el historial registre la transición
+    // exacta (pendiente→asignada en asignación nueva, X→asignada en
+    // reasignación) y para que el audit_log marque es_reasignacion.
     const resultado = await asignarTecnico({
       solicitudId: solicitud.id,
       tecnicoId,
       asignadoPor: user.id,
       nota,
       empresaTercero: tecnicoSeleccionado?.empresa_tercero ?? null,
+      estadoActual: solicitud.estado,
     })
 
     setAsignando(false)
@@ -194,7 +197,7 @@ export default function ModalAsignarTecnico({
               <select
                 id="select-tecnico"
                 value={tecnicoId}
-                onChange={e => setTecnicoId(e.target.value)}
+                onChange={e => setTecnicoIdSeleccionado(e.target.value)}
                 disabled={asignando}
                 className="w-full h-11 px-3 rounded-lg border border-warm-300 text-sm text-primary-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-50 cursor-pointer"
               >

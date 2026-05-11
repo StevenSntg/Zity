@@ -3,6 +3,8 @@ import {
   validarImagen,
   pathFotoSolicitud,
   categoriasParaTipo,
+  labelTipo,
+  labelCategoria,
   IMAGEN_MAX_BYTES,
   DESCRIPCION_MAX,
 } from '../../lib/solicitudes'
@@ -95,5 +97,28 @@ describe('categoriasParaTipo', () => {
 describe('DESCRIPCION_MAX', () => {
   it('expone el límite de 300 caracteres alineado con el criterio HU-MANT-01', () => {
     expect(DESCRIPCION_MAX).toBe(300)
+  })
+})
+
+describe('labelTipo y labelCategoria', () => {
+  it('labelTipo devuelve la etiqueta humana de un tipo válido', () => {
+    expect(labelTipo('mantenimiento')).toBe('Mantenimiento')
+    expect(labelTipo('reparacion')).toBe('Reparación')
+    expect(labelTipo('queja')).toBe('Queja')
+  })
+
+  it('labelTipo devuelve el value tal cual si no está en el catálogo (fallback)', () => {
+    // Caso defensivo: si la BD añade un valor que el frontend aún no conoce,
+    // no rompemos la UI. Devolvemos el value crudo.
+    expect(labelTipo('desconocido' as never)).toBe('desconocido')
+  })
+
+  it('labelCategoria devuelve la etiqueta humana de una categoría válida', () => {
+    expect(labelCategoria('plomeria')).toBe('Plomería')
+    expect(labelCategoria('areas_comunes')).toBe('Áreas comunes')
+  })
+
+  it('labelCategoria devuelve el value tal cual si no está en el catálogo', () => {
+    expect(labelCategoria('inexistente' as never)).toBe('inexistente')
   })
 })

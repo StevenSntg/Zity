@@ -1,10 +1,10 @@
 // HU-MANT-04 SPRINT-4
 // Lógica de actualización de estado para el técnico.
 // Define la máquina de estados válida (asignada→en_progreso, en_progreso→resuelta)
-// y ejecuta: UPDATE solicitudes.estado + INSERT historial_estados + audit_log.
-// El historial siempre se registra; el audit_log es fire-and-forget.
+// y delega la escritura combinada (estado + historial + audit) en el helper
+// centralizado `cambiarEstadoSolicitud()`.
 
-import { supabase } from '../lib/supabase'
+import { cambiarEstadoSolicitud } from '../lib/solicitudes'
 import type { EstadoSolicitud } from '../types/database'
 
 // ─── Máquina de estados del técnico ─────────────────────────────────────────
@@ -47,15 +47,15 @@ export type ResultadoActualizarEstado = {
 
 /**
  * HU-MANT-04 SPRINT-4
- * Actualiza el estado de una solicitud asignada al técnico:
- *   1. Valida la transición y la nota en cliente
- *   2. UPDATE solicitudes.estado (RLS bloquea si no es el técnico asignado)
- *   3. INSERT historial_estados con nota
- *   4. INSERT audit_log (fire-and-forget)
+ * Actualiza el estado de una solicitud asignada al técnico.
  *
- * Si el UPDATE falla el INSERT de historial no se ejecuta.
- * Si el INSERT de historial falla, el estado ya cambió en BD — se reporta
- * el error al usuario para que pueda reintentar con la nota preservada.
+ * Flujo:
+ *   1. Valida la transición y la nota en cliente.
+ *   2. Delega en `cambiarEstadoSolicitud()` la escritura combinada de
+ *      solicitudes.estado, historial_estados y audit_log.
+ *
+ * La RLS de solicitudes bloquea el UPDATE si el técnico no tiene la solicitud
+ * asignada.
  */
 export async function actualizarEstadoTecnico(
   payload: PayloadActualizarEstado,
@@ -85,45 +85,13 @@ export async function actualizarEstadoTecnico(
     }
   }
 
-  // ── 1. Actualizar estado en solicitudes ──────────────────────────────────
-  const { error: updateError } = await supabase
-    .from('solicitudes')
-    .update({ estado: estadoNuevo })
-    .eq('id', solicitudId)
-
-  if (updateError) {
-    return { ok: false, error: updateError.message }
-  }
-
-  // ── 2. Insertar en historial_estados ─────────────────────────────────────
-  const { error: historialError } = await supabase
-    .from('historial_estados')
-    .insert({
-      solicitud_id: solicitudId,
-      estado_anterior: estadoAnterior,
-      estado_nuevo: estadoNuevo,
-      cambiado_por: tecnicoId,
-      nota: nota.trim() || null,
-    })
-
-  if (historialError) {
-    // El estado ya cambió; informamos al usuario pero no revertimos
-    // porque el estado es correcto — solo faltó el historial.
-    return {
-      ok: false,
-      error: `Estado actualizado, pero no se pudo registrar en el historial: ${historialError.message}`,
-    }
-  }
-
-  // ── 3. Audit log (fire-and-forget) ───────────────────────────────────────
-  // HU-MANT-04 SPRINT-4 — cualquier cambio de estado registra en audit_log
-  await supabase.from('audit_log').insert({
-    usuario_id: tecnicoId,
-    accion: 'actualizar_estado_solicitud',
-    entidad: 'solicitudes',
-    entidad_id: solicitudId,
-    resultado: JSON.stringify({ estado_anterior: estadoAnterior, estado_nuevo: estadoNuevo }),
+  // ── Cambio de estado vía helper centralizado ─────────────────────────────
+  return cambiarEstadoSolicitud({
+    solicitudId,
+    estadoAnterior,
+    estadoNuevo,
+    nota,
+    usuarioId: tecnicoId,
+    accionAudit: 'actualizar_estado_solicitud',
   })
-
-  return { ok: true }
 }
