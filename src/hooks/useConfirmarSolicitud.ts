@@ -11,7 +11,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { cambiarEstadoSolicitud } from '../lib/solicitudes'
+import {
+  cambiarEstadoSolicitud,
+  pathFotoRechazo,
+  appendFotoARechazo,
+  validarImagen,
+  BUCKET_FOTOS,
+} from '../lib/solicitudes'
 import type { Solicitud } from '../types/database'
 
 // HU-MANT-07 SPRINT-4 — Umbral de escalada al admin
@@ -54,9 +60,10 @@ export async function confirmarSolicitud(
 // ─── Rechazar solución ───────────────────────────────────────────────────────
 
 /**
- * HU-MANT-07 SPRINT-4
+ * HU-MANT-07 SPRINT-4 (+ Sprint 5 · PBI-S4-E04: foto opcional)
  * El residente rechaza la solución del técnico.
  * - Valida nota mínima de 20 chars
+ * - Sube la foto opcional al bucket solicitudes-fotos (path con prefijo rechazo_)
  * - Incrementa intentos_resolucion
  * - Si >= MAX_INTENTOS_RESOLUCION → estado='pendiente' (escalada al admin)
  * - Si < MAX → estado='en_progreso'
@@ -66,6 +73,7 @@ export async function rechazarSolicitud(
   residenteId: string,
   nota: string,
   intentosActuales: number,
+  fotoFile?: File | null,
 ): Promise<ResultadoConfirmacion> {
   const notaTrim = nota.trim()
 
@@ -83,14 +91,35 @@ export async function rechazarSolicitud(
     }
   }
 
+  // Sprint 5 · PBI-S4-E04 — Subir la foto antes del cambio de estado.
+  // Si falla, abortamos sin tocar el estado (la BD queda consistente).
+  let fotoPath: string | null = null
+  if (fotoFile) {
+    const validacionFoto = validarImagen(fotoFile)
+    if (!validacionFoto.ok) {
+      return { ok: false, error: validacionFoto.mensaje }
+    }
+    fotoPath = pathFotoRechazo(residenteId, solicitudId, fotoFile)
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET_FOTOS)
+      .upload(fotoPath, fotoFile, {
+        contentType: fotoFile.type,
+        upsert: false,
+      })
+    if (uploadError) {
+      return { ok: false, error: `No se pudo subir la foto: ${uploadError.message}` }
+    }
+  }
+
   const nuevosIntentos = intentosActuales + 1
   // HU-MANT-07 SPRINT-4 — Escalada si >= MAX_INTENTOS_RESOLUCION
   const escalada = nuevosIntentos >= MAX_INTENTOS_RESOLUCION
   const estadoNuevo = escalada ? 'pendiente' : 'en_progreso'
 
-  const notaHistorial = escalada
+  const notaBase = escalada
     ? `[ESCALADA] Rechazo #${nuevosIntentos}: ${notaTrim}`
     : `Rechazo #${nuevosIntentos}: ${notaTrim}`
+  const notaHistorial = fotoPath ? appendFotoARechazo(notaBase, fotoPath) : notaBase
 
   const resultado = await cambiarEstadoSolicitud({
     solicitudId,
@@ -99,13 +128,24 @@ export async function rechazarSolicitud(
     nota: notaHistorial,
     usuarioId: residenteId,
     accionAudit: escalada ? 'escalada_solicitud' : 'rechazar_solucion',
-    detallesAudit: { intentos: nuevosIntentos, escalada },
+    detallesAudit: {
+      intentos: nuevosIntentos,
+      escalada,
+      con_foto: fotoPath !== null,
+    },
     camposExtraSolicitud: { intentos_resolucion: nuevosIntentos },
   })
 
-  return resultado.ok
-    ? { ok: true, escalada }
-    : { ok: false, error: resultado.error, escalada }
+  if (!resultado.ok) {
+    // Si falla el cambio de estado tras haber subido la foto, intentamos
+    // borrarla para no dejar huérfana en storage.
+    if (fotoPath) {
+      await supabase.storage.from(BUCKET_FOTOS).remove([fotoPath]).catch(() => {})
+    }
+    return { ok: false, error: resultado.error, escalada }
+  }
+
+  return { ok: true, escalada }
 }
 
 // ─── Hook de solicitudes pendientes de confirmación ─────────────────────────

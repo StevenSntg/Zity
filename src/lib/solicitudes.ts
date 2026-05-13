@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { logAuditAction, type AccionAudit } from './audit'
 import type {
   TipoSolicitud,
   CategoriaSolicitud,
@@ -87,6 +88,38 @@ export function pathFotoSolicitud(residenteId: string, solicitudId: string, file
   return `${residenteId}/${solicitudId}/${timestamp}_${nombreSeguro}`
 }
 
+// Sprint 5 · PBI-S4-E04 — Path para foto del rechazo del residente.
+// Comparte el bucket `solicitudes-fotos` y respeta las storage policies
+// (primer segmento = residente_id). Se diferencia con prefijo `rechazo_`
+// en el nombre del archivo para distinguirla de la foto del problema.
+export function pathFotoRechazo(residenteId: string, solicitudId: string, file: File): string {
+  const timestamp = Date.now()
+  const nombreSeguro = file.name
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    || 'foto'
+  return `${residenteId}/${solicitudId}/rechazo_${timestamp}_${nombreSeguro}`
+}
+
+// Sprint 5 · PBI-S4-E04 — Sufijo que se añade a historial_estados.nota cuando
+// el residente adjunta foto al rechazar. Convención simple: la vista de
+// detalle lo detecta y renderiza un botón "Ver foto" que abre URL firmada.
+// Formato: " [foto: <path>]" al final de la nota.
+export const FOTO_RECHAZO_PREFIJO = '[foto: '
+
+export function appendFotoARechazo(nota: string, path: string): string {
+  return `${nota} ${FOTO_RECHAZO_PREFIJO}${path}]`
+}
+
+/** Extrae el path de foto adjunto a una nota de rechazo, si lo hay. */
+export function extraerFotoDeNota(nota: string | null | undefined): string | null {
+  if (!nota) return null
+  const match = nota.match(/\[foto: ([^\]]+)\]/)
+  return match?.[1] ?? null
+}
+
 // =============================================================================
 // Helper centralizado de cambio de estado
 // =============================================================================
@@ -115,8 +148,11 @@ export type CambioEstadoInput = {
   nota: string | null
   /** UUID del usuario que dispara el cambio (auth.uid()) */
   usuarioId: string
-  /** Nombre de la acción a registrar en audit_log.accion */
-  accionAudit: string
+  /**
+   * Acción a registrar en audit_log.accion. Tipado contra el catálogo
+   * cerrado de auditoría (Sprint 5).
+   */
+  accionAudit: AccionAudit
   /** Detalles JSON adicionales para audit_log.detalles */
   detallesAudit?: Record<string, unknown>
   /**
@@ -194,21 +230,21 @@ export async function cambiarEstadoSolicitud(
     }
   }
 
-  // 3) INSERT audit_log (fire-and-forget)
-  //    Detalles entran en columna jsonb `detalles`; `resultado` queda en
-  //    'exitoso' (la policy WITH CHECK exige uno del conjunto cerrado).
-  await supabase.from('audit_log').insert({
-    usuario_id: usuarioId,
-    accion: accionAudit,
-    entidad: 'solicitudes',
-    entidad_id: solicitudId,
-    detalles: {
-      estado_anterior: estadoAnterior,
-      estado_nuevo: estadoNuevo,
-      ...(detallesAudit ?? {}),
+  // 3) Audit log via helper centralizado (Sprint 5 refactor)
+  //    fire-and-forget — el helper loguea internamente si falla.
+  await logAuditAction(
+    {
+      accion: accionAudit,
+      entidad: 'solicitudes',
+      entidadId: solicitudId,
+      detalles: {
+        estado_anterior: estadoAnterior,
+        estado_nuevo: estadoNuevo,
+        ...(detallesAudit ?? {}),
+      },
     },
-    resultado: 'exitoso',
-  })
+    usuarioId,
+  )
 
   return { ok: true }
 }

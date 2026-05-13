@@ -1,9 +1,9 @@
-// HU-MANT-03 SPRINT-4
+// HU-MANT-03 SPRINT-4 (+ PBI-S2-E03 SPRINT-5 enlace a /perfil)
 // Layout base para todas las vistas del técnico: header con logo, nombre,
 // badge de rol y botón de cierre de sesión.
 
 import { useAuth } from '../../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import zityLogo from '../../assets/zity_logo.png'
 
 type Props = {
@@ -34,9 +34,14 @@ export default function TecnicoShell({ title, subtitle, children }: Props) {
             </span>
           </div>
           <div className="flex items-center gap-3 min-w-0">
-            <span className="text-sm text-primary-700 truncate hidden sm:block">
+            {/* Sprint 5 · PBI-S2-E03 — link a perfil propio */}
+            <Link
+              to="/perfil"
+              className="text-sm text-primary-700 hover:text-primary-900 truncate font-medium hidden sm:block"
+              title="Editar mi perfil"
+            >
               {profile?.nombre} {profile?.apellido}
-            </span>
+            </Link>
             <button
               onClick={handleSignOut}
               className="text-sm text-warm-400 hover:text-error transition-colors font-medium whitespace-nowrap cursor-pointer"

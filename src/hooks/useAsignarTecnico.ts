@@ -15,13 +15,21 @@ import type { Profile } from '../types/database'
 export type TecnicoActivo = Pick<
   Profile,
   'id' | 'nombre' | 'apellido' | 'email' | 'empresa_tercero'
->
+> & {
+  // Sprint 5 · PBI-S4-E02 — conteo de solicitudes activas
+  // (estado ∈ {asignada, en_progreso}) en las que el técnico está asignado.
+  cargaActiva: number
+}
 
 /** Técnicos agrupados: clave = nombre de empresa o "Internos" si es null */
 export type GrupoTecnicos = {
   empresa: string
   tecnicos: TecnicoActivo[]
 }
+
+// Sprint 5 · PBI-S4-E02 — umbral a partir del cual mostramos el badge naranja
+// indicando que el técnico está sobrecargado.
+export const CARGA_TECNICO_ALTA = 5
 
 export type PayloadAsignacion = {
   solicitudId: string
@@ -57,27 +65,53 @@ export function useTecnicosActivos() {
     let cancelado = false
 
     void (async () => {
-      const { data, error: fetchError } = await supabase
-        .from('usuarios')
-        .select('id, nombre, apellido, email, empresa_tercero')
-        .eq('rol', 'tecnico')
-        .eq('estado_cuenta', 'activo')
-        .order('nombre', { ascending: true })
+      // Dos queries en paralelo:
+      //  (1) técnicos activos
+      //  (2) asignaciones de solicitudes con estado en {asignada, en_progreso}
+      // Luego agregamos en cliente. Es más simple y portable que un RPC y
+      // mantiene los datos consistentes (transacción de lectura snapshot).
+      const [tecnicosRes, cargasRes] = await Promise.all([
+        supabase
+          .from('usuarios')
+          .select('id, nombre, apellido, email, empresa_tercero')
+          .eq('rol', 'tecnico')
+          .eq('estado_cuenta', 'activo')
+          .order('nombre', { ascending: true }),
+        supabase
+          .from('asignaciones')
+          .select('tecnico_id, solicitud_id, solicitudes!inner(estado)')
+          .in('solicitudes.estado', ['asignada', 'en_progreso']),
+      ])
 
       if (cancelado) return
 
-      if (fetchError) {
-        setError(fetchError.message)
+      if (tecnicosRes.error) {
+        setError(tecnicosRes.error.message)
         setLoading(false)
         return
       }
 
+      // Mapa tecnico_id -> conteo de solicitudes activas
+      // Sprint 5 · PBI-S4-E02 — si la query de cargas falla la dejamos en 0
+      // (degradación elegante: el dropdown sigue funcionando sin el indicador).
+      const cargas = new Map<string, number>()
+      if (!cargasRes.error && cargasRes.data) {
+        for (const row of cargasRes.data as Array<{ tecnico_id: string }>) {
+          cargas.set(row.tecnico_id, (cargas.get(row.tecnico_id) ?? 0) + 1)
+        }
+      }
+
       // Agrupar por empresa_tercero; null → "Internos"
       const mapaEmpresas = new Map<string, TecnicoActivo[]>()
-      for (const t of (data ?? []) as TecnicoActivo[]) {
-        const empresa = t.empresa_tercero ?? 'Internos'
+      type RawTecnico = Pick<Profile, 'id' | 'nombre' | 'apellido' | 'email' | 'empresa_tercero'>
+      for (const t of (tecnicosRes.data ?? []) as RawTecnico[]) {
+        const tecnico: TecnicoActivo = {
+          ...t,
+          cargaActiva: cargas.get(t.id) ?? 0,
+        }
+        const empresa = tecnico.empresa_tercero ?? 'Internos'
         if (!mapaEmpresas.has(empresa)) mapaEmpresas.set(empresa, [])
-        mapaEmpresas.get(empresa)!.push(t)
+        mapaEmpresas.get(empresa)!.push(tecnico)
       }
 
       // "Internos" siempre primero, luego el resto en orden de inserción

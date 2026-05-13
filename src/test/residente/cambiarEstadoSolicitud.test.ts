@@ -63,7 +63,7 @@ const INPUT_BASE = {
   estadoNuevo: 'asignada' as const,
   nota: 'Nota de prueba',
   usuarioId: 'usr-uuid-admin',
-  accionAudit: 'asignar_solicitud',
+  accionAudit: 'asignar_solicitud' as const,
 }
 
 describe('cambiarEstadoSolicitud', () => {

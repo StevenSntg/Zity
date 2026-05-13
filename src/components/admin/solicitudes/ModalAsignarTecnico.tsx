@@ -12,6 +12,7 @@ import { useModalBehavior } from '../../../hooks/useModalBehavior'
 import {
   useTecnicosActivos,
   asignarTecnico,
+  CARGA_TECNICO_ALTA,
 } from '../../../hooks/useAsignarTecnico'
 import { useAuth } from '../../../contexts/AuthContext'
 import { labelCategoria, labelTipo } from '../../../lib/solicitudes'
@@ -54,6 +55,12 @@ export default function ModalAsignarTecnico({
   const tecnicoSeleccionado = grupos
     .flatMap(g => g.tecnicos)
     .find(t => t.id === tecnicoId)
+
+  // Sprint 5 · PBI-S4-E02 — el admin ve un aviso explícito si el técnico
+  // seleccionado tiene carga > CARGA_TECNICO_ALTA. No bloquea la asignación,
+  // solo la advierte.
+  const tecnicoSobrecargado =
+    tecnicoSeleccionado != null && tecnicoSeleccionado.cargaActiva > CARGA_TECNICO_ALTA
 
   const esReasignacion = solicitud.estado !== 'pendiente'
 
@@ -203,15 +210,38 @@ export default function ModalAsignarTecnico({
               >
                 {grupos.map(grupo => (
                   <optgroup key={grupo.empresa} label={grupo.empresa}>
-                    {grupo.tecnicos.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.nombre} {t.apellido}
-                        {t.empresa_tercero ? ` · ${t.empresa_tercero}` : ''}
-                      </option>
-                    ))}
+                    {grupo.tecnicos.map(t => {
+                      // Sprint 5 · PBI-S4-E02 — etiqueta con carga activa
+                      const sobrecargado = t.cargaActiva > CARGA_TECNICO_ALTA
+                      const cargaLabel =
+                        t.cargaActiva === 0
+                          ? '(libre)'
+                          : `(${t.cargaActiva} activa${t.cargaActiva === 1 ? '' : 's'})${sobrecargado ? ' ⚠' : ''}`
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {t.nombre} {t.apellido}
+                          {t.empresa_tercero ? ` · ${t.empresa_tercero}` : ''}
+                          {' · '}
+                          {cargaLabel}
+                        </option>
+                      )
+                    })}
                   </optgroup>
                 ))}
               </select>
+            )}
+
+            {/* Sprint 5 · PBI-S4-E02 — aviso de sobrecarga */}
+            {tecnicoSobrecargado && (
+              <p className="mt-2 flex items-start gap-2 text-xs text-amber-800 bg-warning/10 border border-warning/30 rounded-md px-2.5 py-2">
+                <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <span>
+                  {tecnicoSeleccionado.nombre} ya tiene {tecnicoSeleccionado.cargaActiva} solicitudes activas.
+                  Considera asignar a otro técnico para no sobrecargarlo.
+                </span>
+              </p>
             )}
           </div>
 

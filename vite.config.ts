@@ -34,9 +34,15 @@ export default defineConfig({
         'src/types/**',
       ],
       thresholds: {
-        // El gate sólo aplica al módulo principal del Sprint 4 (helper centralizado
-        // + utilidades de solicitudes). Si la cobertura baja del 60 % el CI falla.
+        // Sprint 4 — Helper centralizado de cambio de estado + utilidades.
         'src/lib/solicitudes.ts': {
+          lines: 60,
+          statements: 60,
+          functions: 60,
+          branches: 60,
+        },
+        // Sprint 5 — Helper centralizado de auditoría.
+        'src/lib/audit.ts': {
           lines: 60,
           statements: 60,
           functions: 60,

@@ -18,8 +18,10 @@ const Activar = lazy(() => import('./pages/Activar'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const AdminUsuarios = lazy(() => import('./pages/admin/Usuarios'))
 const AdminSolicitudes = lazy(() => import('./pages/admin/Solicitudes'))
+const AdminAuditoria = lazy(() => import('./pages/admin/Auditoria'))
 const ResidenteDashboard = lazy(() => import('./pages/ResidenteDashboard'))
 const TecnicoDashboard = lazy(() => import('./pages/TecnicoDashboard'))
+const Perfil = lazy(() => import('./pages/Perfil'))
 
 function RootRedirect() {
   const { user, profile, loading, isRecovery } = useAuth()
@@ -76,6 +78,12 @@ export default function App() {
                 <AdminSolicitudes />
               </ProtectedRoute>
             } />
+            {/* Sprint 5 · HU-AUDIT-01 — vista admin del audit_log */}
+            <Route path="/admin/auditoria" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminAuditoria />
+              </ProtectedRoute>
+            } />
             <Route path="/residente" element={
               <ProtectedRoute allowedRoles={['residente']}>
                 <ResidenteDashboard />
@@ -84,6 +92,13 @@ export default function App() {
             <Route path="/tecnico" element={
               <ProtectedRoute allowedRoles={['tecnico']}>
                 <TecnicoDashboard />
+              </ProtectedRoute>
+            } />
+
+            {/* Sprint 5 · PBI-S2-E03 — /perfil accesible para los 3 roles activos */}
+            <Route path="/perfil" element={
+              <ProtectedRoute allowedRoles={['residente', 'tecnico', 'admin']}>
+                <Perfil />
               </ProtectedRoute>
             } />
 

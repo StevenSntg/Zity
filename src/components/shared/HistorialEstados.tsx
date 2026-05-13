@@ -13,9 +13,20 @@
 //   - Paginación con botón "Ver más"
 //   - Estado vacío y estado de carga
 
+import { useState } from 'react'
 import { useHistorialEstados } from '../../hooks/useHistorialEstados'
 import { tiempoTranscurrido } from '../../lib/format'
+import { extraerFotoDeNota, BUCKET_FOTOS } from '../../lib/solicitudes'
+import { supabase } from '../../lib/supabase'
 import type { Rol } from '../../types/database'
+
+// Sprint 5 · PBI-S4-E04 — Sufijo `[foto: path]` que el residente añade al
+// rechazar con foto. Lo extraemos para renderizar un botón aparte y mostrar
+// la nota limpia.
+function notaSinFoto(nota: string | null): string | null {
+  if (!nota) return null
+  return nota.replace(/\s*\[foto: [^\]]+\]\s*$/, '').trim() || null
+}
 
 // ─── Config de badges por estado ─────────────────────────────────────────────
 
@@ -190,12 +201,20 @@ export default function HistorialEstados({ solicitudId, rolObservador, userId }:
                   </span>
                 </div>
 
-                {/* Nota del cambio */}
-                {h.nota && (
-                  <div className="mt-1.5 bg-warm-50 border border-warm-200 rounded-md px-2.5 py-1.5">
-                    <p className="text-xs text-primary-700 leading-relaxed">{h.nota}</p>
-                  </div>
-                )}
+                {/* Nota del cambio (+ foto opcional Sprint 5 PBI-S4-E04) */}
+                {h.nota && (() => {
+                  const fotoPath = extraerFotoDeNota(h.nota)
+                  const notaLimpia = notaSinFoto(h.nota)
+                  if (!notaLimpia && !fotoPath) return null
+                  return (
+                    <div className="mt-1.5 bg-warm-50 border border-warm-200 rounded-md px-2.5 py-1.5 space-y-1.5">
+                      {notaLimpia && (
+                        <p className="text-xs text-primary-700 leading-relaxed">{notaLimpia}</p>
+                      )}
+                      {fotoPath && <FotoRechazoBoton path={fotoPath} />}
+                    </div>
+                  )
+                })()}
               </div>
             </li>
           )
@@ -226,6 +245,52 @@ export default function HistorialEstados({ solicitudId, rolObservador, userId }:
           )}
         </button>
       )}
+    </div>
+  )
+}
+
+// ─── Sprint 5 · PBI-S4-E04 · Botón "Ver foto" del rechazo ───────────────────
+// Genera una URL firmada (TTL corto) al hacer click y la abre en una pestaña
+// nueva. No pre-carga la URL para no consumir requests por cada historial.
+
+function FotoRechazoBoton({ path }: { path: string }) {
+  const [cargando, setCargando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function abrir() {
+    setCargando(true)
+    setError(null)
+    const { data, error: signError } = await supabase
+      .storage
+      .from(BUCKET_FOTOS)
+      .createSignedUrl(path, 60 * 5) // 5 minutos
+    setCargando(false)
+    if (signError || !data) {
+      setError('No se pudo cargar la foto.')
+      return
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={abrir}
+        disabled={cargando}
+        className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-800 font-medium cursor-pointer disabled:opacity-50"
+      >
+        {cargando ? (
+          <div className="w-3 h-3 border border-primary-400 border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        )}
+        Ver foto del rechazo
+      </button>
+      {error && <p className="text-xs text-error mt-1">{error}</p>}
     </div>
   )
 }

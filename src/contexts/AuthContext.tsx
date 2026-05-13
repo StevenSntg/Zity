@@ -17,6 +17,13 @@ type AuthActions = {
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: string | null }>
   updatePassword: (password: string) => Promise<{ error: string | null }>
+  /**
+   * Sprint 5 · PBI-S2-E03
+   * Refresca el `profile` desde la BD tras una edición en /perfil.
+   * El llamador no necesita lanzar excepciones: si el fetch falla, el
+   * profile previo se conserva.
+   */
+  refreshProfile: () => Promise<void>
 }
 
 type AuthContextType = AuthState & AuthActions
@@ -279,9 +286,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null }
   }, [])
 
+  // Sprint 5 · PBI-S2-E03 — vuelve a leer el profile de la BD y lo refresca
+  // en el contexto. La página /perfil lo llama tras un guardado exitoso para
+  // que el sidebar y otros consumidores vean los datos al día.
+  const refreshProfile = useCallback(async () => {
+    const userId = profileUserIdRef.current
+    if (!userId) return
+    const fresh = await fetchProfileSafe(userId)
+    if (fresh && mountedRef.current) {
+      setState(prev => ({ ...prev, profile: fresh }))
+    }
+  }, [])
+
   const value = useMemo<AuthContextType>(
-    () => ({ ...state, signIn, signUp, signOut, resetPassword, updatePassword }),
-    [state, signIn, signUp, signOut, resetPassword, updatePassword],
+    () => ({ ...state, signIn, signUp, signOut, resetPassword, updatePassword, refreshProfile }),
+    [state, signIn, signUp, signOut, resetPassword, updatePassword, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

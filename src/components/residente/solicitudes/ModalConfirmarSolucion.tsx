@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useModalBehavior } from '../../../hooks/useModalBehavior'
 import { confirmarSolicitud } from '../../../hooks/useConfirmarSolicitud'
 import { useAuth } from '../../../contexts/AuthContext'
+import Portal from '../../Portal'
 
 type Props = {
   solicitudId: string
@@ -36,9 +37,15 @@ export default function ModalConfirmarSolucion({ solicitudId, onConfirmado, onCe
   }
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onCerrar} />
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+    // Portal + z-[60]: el portal saca el modal del stacking context del padre
+    // (las secciones con .animate-fade-in crean uno por su transform residual).
+    <Portal>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        onClick={guardando ? undefined : onCerrar}
+      />
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[calc(100vh-2rem)] overflow-y-auto animate-scale-in">
 
         {/* Icono */}
         <div className="w-14 h-14 mx-auto rounded-full bg-success/10 flex items-center justify-center mb-4">
@@ -82,5 +89,6 @@ export default function ModalConfirmarSolucion({ solicitudId, onConfirmado, onCe
         </div>
       </div>
     </div>
+    </Portal>
   )
 }

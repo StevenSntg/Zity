@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   validarImagen,
   pathFotoSolicitud,
+  pathFotoRechazo,
+  appendFotoARechazo,
+  extraerFotoDeNota,
   categoriasParaTipo,
   labelTipo,
   labelCategoria,
@@ -97,6 +100,53 @@ describe('categoriasParaTipo', () => {
 describe('DESCRIPCION_MAX', () => {
   it('expone el límite de 300 caracteres alineado con el criterio HU-MANT-01', () => {
     expect(DESCRIPCION_MAX).toBe(300)
+  })
+})
+
+// ─── Sprint 5 · PBI-S4-E04 — Helpers de foto al rechazar ──────────────────
+
+describe('pathFotoRechazo', () => {
+  it('prefija el archivo con "rechazo_" para distinguirlo de la foto del problema', () => {
+    const file = new File(['x'], 'goteo.jpg', { type: 'image/jpeg' })
+    const path = pathFotoRechazo('res-uuid', 'sol-uuid', file)
+    const ultimo = path.split('/').pop() ?? ''
+    expect(ultimo.startsWith('rechazo_')).toBe(true)
+    expect(ultimo).toMatch(/^rechazo_\d+_goteo\.jpg$/)
+  })
+
+  it('respeta el formato residente/solicitud requerido por las storage policies', () => {
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
+    const path = pathFotoRechazo('USR-X', 'SOL-Y', file)
+    const partes = path.split('/')
+    expect(partes[0]).toBe('USR-X')
+    expect(partes[1]).toBe('SOL-Y')
+  })
+})
+
+describe('appendFotoARechazo y extraerFotoDeNota', () => {
+  it('appendFotoARechazo añade el sufijo [foto: <path>] al final de la nota', () => {
+    const r = appendFotoARechazo('Rechazo #1: el grifo sigue goteando', 'res/sol/rechazo_123_foto.jpg')
+    expect(r).toBe('Rechazo #1: el grifo sigue goteando [foto: res/sol/rechazo_123_foto.jpg]')
+  })
+
+  it('extraerFotoDeNota encuentra el path embebido en la nota', () => {
+    const path = extraerFotoDeNota('Rechazo #2: persiste el problema [foto: a/b/c.jpg]')
+    expect(path).toBe('a/b/c.jpg')
+  })
+
+  it('extraerFotoDeNota devuelve null si no hay sufijo de foto', () => {
+    expect(extraerFotoDeNota('Rechazo simple sin adjunto')).toBeNull()
+  })
+
+  it('extraerFotoDeNota tolera nota null o undefined', () => {
+    expect(extraerFotoDeNota(null)).toBeNull()
+    expect(extraerFotoDeNota(undefined)).toBeNull()
+  })
+
+  it('roundtrip: append → extraer reproduce el path original', () => {
+    const path = 'res/sol/rechazo_999_imagen.png'
+    const notaConFoto = appendFotoARechazo('Nota libre del residente', path)
+    expect(extraerFotoDeNota(notaConFoto)).toBe(path)
   })
 })
 

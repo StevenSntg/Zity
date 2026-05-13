@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useSolicitudes, useFotosFirmadas } from '../hooks/useSolicitudes'
 import ModalNuevaSolicitud from '../components/residente/ModalNuevaSolicitud'
 // HU-MANT-05 SPRINT-4 — Drawer de detalle con historial para el residente
@@ -80,9 +80,14 @@ export default function ResidenteDashboard() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-primary-700 hidden sm:inline">
+            {/* Sprint 5 · PBI-S2-E03 — link a perfil propio */}
+            <Link
+              to="/perfil"
+              className="text-sm text-primary-700 hover:text-primary-900 font-medium hidden sm:inline"
+              title="Editar mi perfil"
+            >
               {profile?.nombre} {profile?.apellido}
-            </span>
+            </Link>
             <button
               onClick={handleSignOut}
               className="text-sm text-warm-400 hover:text-error transition-colors font-medium cursor-pointer"
