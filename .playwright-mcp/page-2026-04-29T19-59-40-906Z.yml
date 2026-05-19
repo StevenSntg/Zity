@@ -1,0 +1,50 @@
+- generic [ref=e215]:
+  - banner [ref=e216]:
+    - generic [ref=e217]:
+      - generic [ref=e218]:
+        - img "Zity" [ref=e219]
+        - generic [ref=e220]: Admin
+      - button "Abrir menú" [ref=e221] [cursor=pointer]:
+        - img [ref=e222]
+  - generic [ref=e225]:
+    - generic [ref=e227]:
+      - heading "Panel de administración" [level=1] [ref=e228]
+      - paragraph [ref=e229]: Bienvenido, Carlos. Aquí gestionas el edificio.
+    - generic [ref=e230]:
+      - generic [ref=e231]:
+        - generic [ref=e232]:
+          - paragraph [ref=e233]: Solicitudes pendientes
+          - img [ref=e235]
+        - paragraph [ref=e237]: "4"
+        - paragraph [ref=e238]: Hoy
+      - generic [ref=e239]:
+        - generic [ref=e240]:
+          - paragraph [ref=e241]: En progreso
+          - img [ref=e243]
+        - paragraph [ref=e245]: "0"
+        - paragraph [ref=e246]: Hoy
+      - generic [ref=e247]:
+        - generic [ref=e248]:
+          - paragraph [ref=e249]: Resueltas este mes
+          - img [ref=e251]
+        - paragraph [ref=e253]: "0"
+        - paragraph [ref=e254]: Mes actual
+    - generic [ref=e255]:
+      - heading "Accesos rápidos" [level=2] [ref=e256]
+      - generic [ref=e257]:
+        - link "Gestión de usuarios Ver, filtrar, invitar y bloquear usuarios del edificio." [ref=e258] [cursor=pointer]:
+          - /url: /admin/usuarios
+          - generic [ref=e259]:
+            - img [ref=e261]
+            - generic [ref=e263]:
+              - heading "Gestión de usuarios" [level=3] [ref=e264]
+              - paragraph [ref=e265]: Ver, filtrar, invitar y bloquear usuarios del edificio.
+            - img [ref=e266]
+        - link "Solicitudes de mantenimiento Revisa solicitudes pendientes con foto y detalles del residente." [ref=e268] [cursor=pointer]:
+          - /url: /admin/solicitudes
+          - generic [ref=e269]:
+            - img [ref=e271]
+            - generic [ref=e273]:
+              - heading "Solicitudes de mantenimiento" [level=3] [ref=e274]
+              - paragraph [ref=e275]: Revisa solicitudes pendientes con foto y detalles del residente.
+            - img [ref=e276]

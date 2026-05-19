@@ -1,0 +1,81 @@
+- generic [ref=e41]:
+  - banner [ref=e42]:
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - img "Zity" [ref=e45]
+        - generic [ref=e46]: Residente
+      - generic [ref=e47]:
+        - generic [ref=e48]: Laura Vega
+        - button "Cerrar sesión" [ref=e49] [cursor=pointer]
+  - main [ref=e50]:
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - heading "Hola, Laura" [level=2] [ref=e53]
+        - paragraph [ref=e54]: Piso 4, Depto. B
+      - button "Nueva solicitud" [ref=e55] [cursor=pointer]:
+        - img [ref=e56]
+        - text: Nueva solicitud
+    - generic [ref=e58]:
+      - heading "Mis solicitudes(1)" [level=3] [ref=e59]:
+        - text: Mis solicitudes
+        - generic [ref=e60]: (1)
+      - list [ref=e61]:
+        - listitem [ref=e62]:
+          - img "Foto de la solicitud ZIT-001" [ref=e64]
+          - generic [ref=e65]:
+            - generic [ref=e66]:
+              - generic [ref=e67]: ZIT-001
+              - generic [ref=e68]: Pendiente
+            - paragraph [ref=e69]: Mantenimiento · Plomería
+            - paragraph [ref=e70]: Gotera en el baño principal, gotea sobre el piso. Inicia hace 2 días al usar la ducha.
+            - generic [ref=e71]:
+              - generic [ref=e72]: "Prioridad: urgente"
+              - generic [ref=e73]: hace 1 minuto
+  - dialog "Nueva solicitud" [ref=e74]:
+    - generic [ref=e76]:
+      - generic [ref=e77]:
+        - heading "Nueva solicitud" [level=3] [ref=e78]
+        - button "Cerrar" [ref=e79] [cursor=pointer]:
+          - img [ref=e80]
+      - generic [ref=e82]:
+        - generic [ref=e83]:
+          - generic [ref=e84]:
+            - generic [ref=e85]: Tipo *
+            - combobox "Tipo *" [ref=e86]:
+              - option "Mantenimiento"
+              - option "Reparación" [selected]
+              - option "Queja"
+              - option "Sugerencia"
+              - option "Otro"
+          - generic [ref=e87]:
+            - generic [ref=e88]: Categoría *
+            - combobox "Categoría *" [ref=e89]:
+              - option "Plomería" [selected]
+              - option "Electricidad"
+              - option "Áreas comunes"
+              - option "Otro"
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - generic [ref=e92]: Descripción *
+            - generic [ref=e93]: 230 restantes
+          - textbox "Descripción *" [active] [ref=e94]:
+            - /placeholder: Describe brevemente el problema (qué pasó, dónde, desde cuándo)…
+            - text: El interruptor de la sala hace ruido al apagarlo, parece estar suelto.
+        - generic [ref=e95]:
+          - generic [ref=e96]: Prioridad
+          - generic [ref=e97]:
+            - button "normal" [ref=e98] [cursor=pointer]
+            - button "urgente" [ref=e99] [cursor=pointer]
+        - generic [ref=e100]:
+          - paragraph [ref=e101]: Unidad
+          - paragraph [ref=e102]: Piso 4 — Depto. B
+          - paragraph [ref=e103]: Se toma de tu perfil; no se puede modificar aquí.
+        - generic [ref=e104]:
+          - generic [ref=e105]: Foto del problema *
+          - button "Subir foto del problema JPEG o PNG · máx. 5 MB" [ref=e107] [cursor=pointer]:
+            - img [ref=e108]
+            - paragraph [ref=e110]: Subir foto del problema
+            - paragraph [ref=e111]: JPEG o PNG · máx. 5 MB
+      - generic [ref=e112]:
+        - button "Cancelar" [ref=e113] [cursor=pointer]
+        - button "Enviar solicitud" [disabled] [ref=e114]

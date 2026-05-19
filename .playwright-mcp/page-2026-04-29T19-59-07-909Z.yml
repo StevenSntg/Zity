@@ -1,0 +1,50 @@
+- generic [ref=e41]:
+  - banner [ref=e42]:
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - img "Zity" [ref=e45]
+        - generic [ref=e46]: Residente
+      - generic [ref=e47]:
+        - generic [ref=e48]: Laura Vega
+        - button "Cerrar sesión" [ref=e49] [cursor=pointer]
+  - main [ref=e50]:
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - heading "Hola, Laura" [level=2] [ref=e53]
+        - paragraph [ref=e54]: Piso 4, Depto. B
+      - button "Nueva solicitud" [ref=e55] [cursor=pointer]:
+        - img [ref=e56]
+        - text: Nueva solicitud
+    - generic [ref=e149]:
+      - img [ref=e150]
+      - generic [ref=e152]:
+        - text: Solicitud
+        - strong [ref=e153]: ZIT-004
+        - text: registrada. El administrador la revisará pronto.
+    - generic [ref=e58]:
+      - heading "Mis solicitudes(2)" [level=3] [ref=e154]:
+        - text: Mis solicitudes
+        - generic [ref=e155]: (2)
+      - list [ref=e156]:
+        - listitem [ref=e157]:
+          - img "Foto de la solicitud ZIT-004" [ref=e159]
+          - generic [ref=e160]:
+            - generic [ref=e161]:
+              - generic [ref=e162]: ZIT-004
+              - generic [ref=e163]: Pendiente
+            - paragraph [ref=e164]: Reparación · Electricidad
+            - paragraph [ref=e165]: El interruptor de la sala hace ruido al apagarlo, parece estar suelto.
+            - generic [ref=e166]:
+              - generic [ref=e167]: "Prioridad: urgente"
+              - generic [ref=e168]: este minuto
+        - listitem [ref=e169]:
+          - img "Foto de la solicitud ZIT-001" [ref=e171]
+          - generic [ref=e172]:
+            - generic [ref=e173]:
+              - generic [ref=e174]: ZIT-001
+              - generic [ref=e175]: Pendiente
+            - paragraph [ref=e176]: Mantenimiento · Plomería
+            - paragraph [ref=e177]: Gotera en el baño principal, gotea sobre el piso. Inicia hace 2 días al usar la ducha.
+            - generic [ref=e178]:
+              - generic [ref=e179]: "Prioridad: urgente"
+              - generic [ref=e180]: hace 2 minutos

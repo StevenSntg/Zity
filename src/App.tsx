@@ -1,0 +1,115 @@
+import { lazy, Suspense } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import { AuthShell } from './components/AuthLayout'
+import FullPageSpinner from './components/FullPageSpinner'
+import { ROLE_ROUTES } from './lib/routing'
+
+// Code splitting: cada página es un chunk separado que se descarga al navegar
+// a su ruta. Reduce el bundle inicial que el visitante anónimo descarga.
+const Login = lazy(() => import('./pages/Login'))
+const Register = lazy(() => import('./pages/Register'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
+const EmailVerified = lazy(() => import('./pages/EmailVerified'))
+const Activar = lazy(() => import('./pages/Activar'))
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const AdminUsuarios = lazy(() => import('./pages/admin/Usuarios'))
+const AdminSolicitudes = lazy(() => import('./pages/admin/Solicitudes'))
+const AdminAuditoria = lazy(() => import('./pages/admin/Auditoria'))
+const ResidenteDashboard = lazy(() => import('./pages/ResidenteDashboard'))
+const TecnicoDashboard = lazy(() => import('./pages/TecnicoDashboard'))
+const Perfil = lazy(() => import('./pages/Perfil'))
+
+function RootRedirect() {
+  const { user, profile, loading, isRecovery } = useAuth()
+
+  if (loading) return <FullPageSpinner />
+  if (isRecovery) return <Navigate to="/reset-password" replace />
+  if (!user) return <Navigate to="/login" replace />
+
+  return <Navigate to={ROLE_ROUTES[profile?.rol ?? 'residente']} replace />
+}
+
+function GuestRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading } = useAuth()
+
+  if (loading) return <FullPageSpinner />
+
+  if (user && profile?.estado_cuenta === 'activo') {
+    return <Navigate to={ROLE_ROUTES[profile.rol]} replace />
+  }
+
+  return <>{children}</>
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Suspense fallback={<FullPageSpinner />}>
+          <Routes>
+            {/* Auth routes — AuthShell se mantiene montado entre páginas; solo cambia el Outlet */}
+            <Route element={<AuthShell />}>
+              <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+              <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+              <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/email-verified" element={<EmailVerified />} />
+              <Route path="/activar" element={<Activar />} />
+            </Route>
+
+            {/* Protected dashboard routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/usuarios" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminUsuarios />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/solicitudes" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminSolicitudes />
+              </ProtectedRoute>
+            } />
+            {/* Sprint 5 · HU-AUDIT-01 — vista admin del audit_log */}
+            <Route path="/admin/auditoria" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminAuditoria />
+              </ProtectedRoute>
+            } />
+            <Route path="/residente" element={
+              <ProtectedRoute allowedRoles={['residente']}>
+                <ResidenteDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/tecnico" element={
+              <ProtectedRoute allowedRoles={['tecnico']}>
+                <TecnicoDashboard />
+              </ProtectedRoute>
+            } />
+
+            {/* Sprint 5 · PBI-S2-E03 — /perfil accesible para los 3 roles activos */}
+            <Route path="/perfil" element={
+              <ProtectedRoute allowedRoles={['residente', 'tecnico', 'admin']}>
+                <Perfil />
+              </ProtectedRoute>
+            } />
+
+            {/* Root redirect */}
+            <Route path="/" element={<RootRedirect />} />
+
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}

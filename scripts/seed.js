@@ -1,0 +1,237 @@
+import { createClient } from '@supabase/supabase-js'
+import { randomUUID } from 'crypto'
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !serviceRoleKey) {
+  console.error('Faltan VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en el entorno')
+  process.exit(1)
+}
+
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+})
+
+const USERS = [
+  {
+    email: 'carlos@zity-demo.com',
+    password: 'Admin1234!',
+    metadata: { nombre: 'Carlos', apellido: 'Fuentes', rol: 'admin', piso: '', departamento: '', telefono: '' },
+  },
+  {
+    email: 'laura@zity-demo.com',
+    password: 'Residente1!',
+    metadata: { nombre: 'Laura', apellido: 'Vega', rol: 'residente', piso: '4', departamento: 'B', telefono: '+51 999 000 001' },
+  },
+  {
+    email: 'pedro@zity-demo.com',
+    password: 'Residente2!',
+    metadata: { nombre: 'Pedro', apellido: 'Ramos', rol: 'residente', piso: '2', departamento: 'A', telefono: '+51 999 000 002' },
+  },
+  {
+    email: 'mario@zity-demo.com',
+    password: 'Tecnico1234!',
+    metadata: { nombre: 'Mario', apellido: 'Peña', rol: 'tecnico', piso: '', departamento: '', telefono: '+51 999 000 003' },
+  },
+  {
+    email: 'ana@zity-demo.com',
+    password: 'Tecnico5678!',
+    metadata: { nombre: 'Ana', apellido: 'Torres', rol: 'tecnico', piso: '', departamento: '', telefono: '+51 999 000 004', empresa_tercero: 'TecnoEdif SAC' },
+  },
+  {
+    email: 'julia@zity-demo.com',
+    password: 'Residente3!',
+    metadata: { nombre: 'Julia', apellido: 'Romero', rol: 'residente', piso: '5', departamento: 'C', telefono: '+51 999 000 005' },
+  },
+]
+
+async function cleanDb() {
+  console.log('Limpiando BD...')
+  await supabase.from('audit_log').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  await supabase.from('invitaciones').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  await supabase.from('historial_estados').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  await supabase.from('asignaciones').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  await supabase.from('solicitudes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+
+  const { data: authUsers } = await supabase.auth.admin.listUsers()
+  for (const u of authUsers?.users ?? []) {
+    if (USERS.some(seed => seed.email === u.email)) {
+      await supabase.auth.admin.deleteUser(u.id)
+    }
+  }
+
+  const demoEmails = USERS.map(u => u.email)
+  await supabase.from('usuarios').delete().in('email', demoEmails)
+  console.log('BD limpia.')
+}
+
+async function seedUsers() {
+  console.log('Insertando usuarios...')
+  const createdIds = {}
+
+  // Lookup previo: si los usuarios ya existen (seed corrió antes sin --clean),
+  // necesitamos recuperar sus IDs para poder seedear el resto (solicitudes,
+  // invitaciones). createUser retorna error duplicado pero no el ID existente.
+  const { data: authUsersAll } = await supabase.auth.admin.listUsers()
+  const idPorEmail = new Map()
+  for (const u of authUsersAll?.users ?? []) {
+    if (u.email) idPorEmail.set(u.email, u.id)
+  }
+
+  for (const user of USERS) {
+    let userId = idPorEmail.get(user.email)
+
+    if (!userId) {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: user.email,
+        password: user.password,
+        email_confirm: true,
+        user_metadata: user.metadata,
+      })
+      if (error) {
+        console.error(`Error creando ${user.email}:`, error.message)
+        continue
+      }
+      userId = data.user.id
+    }
+
+    createdIds[user.email] = userId
+
+    const profileData = {
+      id: userId,
+      email: user.email,
+      nombre: user.metadata.nombre,
+      apellido: user.metadata.apellido,
+      telefono: user.metadata.telefono,
+      rol: user.metadata.rol,
+      piso: user.metadata.piso,
+      departamento: user.metadata.departamento,
+      estado_cuenta: 'activo',
+      empresa_tercero: user.metadata.empresa_tercero ?? null,
+    }
+
+    const { error: profileError } = await supabase.from('usuarios').upsert(profileData)
+    if (profileError) {
+      console.error(`Error insertando perfil ${user.email}:`, profileError.message)
+    } else {
+      console.log(`  ✓ ${user.email} (${user.metadata.rol})`)
+    }
+  }
+
+  return createdIds
+}
+
+async function seedInvitacion(adminId) {
+  console.log('Insertando invitación pendiente (hace 3 días)...')
+  const tresDiasAtras = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+  const expiresAt = new Date(Date.now() + 45 * 60 * 60 * 1000).toISOString()
+
+  const { error } = await supabase.from('invitaciones').insert({
+    email: 'nuevo.residente@ejemplo.com',
+    rol: 'residente',
+    nombre: 'Nuevo Residente',
+    piso: '3',
+    departamento: 'C',
+    token: randomUUID(),
+    estado: 'pendiente',
+    creada_por: adminId,
+    expires_at: expiresAt,
+    created_at: tresDiasAtras,
+  })
+
+  if (error) {
+    console.error('Error insertando invitación:', error.message)
+  } else {
+    console.log('  ✓ Invitación pendiente (hace 3 días)')
+  }
+}
+
+// Seeds 3 solicitudes demo con imágenes externas de picsum.photos. Por decisión
+// del Sprint 3 (Retro · Acción 2: estrategia de seed) NO subimos archivos
+// reales al bucket — guardamos directamente la URL externa en `imagen_url`.
+// La UI sabe diferenciar paths del bucket de URLs absolutas y muestra ambas
+// (las firmadas se generan sólo cuando el path no comienza con http).
+async function seedSolicitudes(ids) {
+  console.log('Insertando solicitudes de mantenimiento demo...')
+  const lauraId = ids['laura@zity-demo.com']
+  const pedroId = ids['pedro@zity-demo.com']
+  const juliaId = ids['julia@zity-demo.com']
+  if (!lauraId || !pedroId || !juliaId) {
+    console.warn('  Faltan IDs de residentes; se omite seed de solicitudes')
+    return
+  }
+
+  const SOLICITUDES_DEMO = [
+    {
+      residente_id: lauraId,
+      tipo: 'mantenimiento',
+      categoria: 'plomeria',
+      descripcion: 'Gotera en el baño principal, gotea sobre el piso. Inicia hace 2 días al usar la ducha.',
+      prioridad: 'urgente',
+      piso: '4',
+      departamento: 'B',
+      imagen_url: 'https://picsum.photos/seed/zity-001/800/600',
+    },
+    {
+      residente_id: pedroId,
+      tipo: 'reparacion',
+      categoria: 'electricidad',
+      descripcion: 'El interruptor de la sala hace chispa al apagarlo. Sólo ocurre con la luz central.',
+      prioridad: 'urgente',
+      piso: '2',
+      departamento: 'A',
+      imagen_url: 'https://picsum.photos/seed/zity-002/800/600',
+    },
+    {
+      residente_id: juliaId,
+      tipo: 'queja',
+      categoria: 'limpieza',
+      descripcion: 'El pasillo del piso 5 lleva 4 días sin barrer. Hay polvo acumulado en las esquinas.',
+      prioridad: 'normal',
+      piso: '5',
+      departamento: 'C',
+      imagen_url: 'https://picsum.photos/seed/zity-003/800/600',
+    },
+  ]
+
+  for (const s of SOLICITUDES_DEMO) {
+    // Idempotencia: si ya existe una solicitud demo de ese residente con la
+    // misma descripción, no la duplicamos. Esto permite ejecutar `npm run seed`
+    // varias veces sin reset y mantener un set estable de datos demo.
+    const { data: existente } = await supabase
+      .from('solicitudes')
+      .select('id, codigo')
+      .eq('residente_id', s.residente_id)
+      .eq('descripcion', s.descripcion)
+      .maybeSingle()
+
+    if (existente) {
+      console.log(`  · Solicitud ${existente.codigo} ya existe, se omite`)
+      continue
+    }
+
+    const { error } = await supabase.from('solicitudes').insert(s)
+    if (error) {
+      console.error(`  Error insertando solicitud para ${s.residente_id}:`, error.message)
+    } else {
+      console.log(`  ✓ Solicitud ${s.tipo}/${s.categoria} (${s.prioridad}) para ${s.residente_id.slice(0, 8)}…`)
+    }
+  }
+}
+
+async function main() {
+  // `--clean` borra los datos demo antes de insertar (uso recomendado en
+  // staging después de pruebas manuales). Sin la bandera el seed es
+  // idempotente gracias al upsert por id.
+  if (process.argv.includes('--clean')) {
+    await cleanDb()
+  }
+  const ids = await seedUsers()
+  const adminId = ids['carlos@zity-demo.com']
+  if (adminId) await seedInvitacion(adminId)
+  await seedSolicitudes(ids)
+  console.log('\n✅ Seed completado.')
+}
+
+main().catch(console.error)

@@ -1,0 +1,163 @@
+- generic [ref=e70]:
+  - banner [ref=e71]:
+    - generic [ref=e72]:
+      - generic [ref=e73]:
+        - img "Zity" [ref=e74]
+        - generic [ref=e75]: Admin
+      - button "Abrir menú" [ref=e76] [cursor=pointer]:
+        - img [ref=e77]
+  - generic [ref=e80]:
+    - generic [ref=e82]:
+      - heading "Solicitudes" [level=1] [ref=e83]
+      - paragraph [ref=e84]: 4 solicitudes encontradas
+    - generic [ref=e87]:
+      - generic [ref=e88]:
+        - generic:
+          - img
+        - combobox "Filtrar por estado" [ref=e89] [cursor=pointer]:
+          - option "Todos los estados" [selected]
+          - option "Pendiente"
+          - option "Asignada"
+          - option "En progreso"
+          - option "Resuelta"
+          - option "Cerrada"
+        - generic:
+          - img
+      - generic [ref=e90]:
+        - generic:
+          - img
+        - combobox "Filtrar por tipo" [ref=e91] [cursor=pointer]:
+          - option "Todos los tipos" [selected]
+          - option "Mantenimiento"
+          - option "Reparación"
+          - option "Queja"
+          - option "Sugerencia"
+          - option "Otro"
+        - generic:
+          - img
+    - table [ref=e236]:
+      - rowgroup [ref=e237]:
+        - row "ID Residente Tipo / Categoría Prioridad Estado Fecha Foto" [ref=e238]:
+          - columnheader "ID" [ref=e239]
+          - columnheader "Residente" [ref=e240]
+          - columnheader "Tipo / Categoría" [ref=e241]
+          - columnheader "Prioridad" [ref=e242]
+          - columnheader "Estado" [ref=e243]
+          - columnheader "Fecha" [ref=e244]
+          - columnheader "Foto" [ref=e245]
+      - rowgroup [ref=e246]:
+        - row "ZIT-004 LV Laura Vega Piso 4 — B Reparación Electricidad normal Pendiente hace 1 minuto" [ref=e247] [cursor=pointer]:
+          - cell "ZIT-004" [ref=e248]
+          - cell "LV Laura Vega Piso 4 — B" [ref=e249]:
+            - generic [ref=e250]:
+              - generic [ref=e251]: LV
+              - generic [ref=e252]:
+                - paragraph [ref=e253]: Laura Vega
+                - paragraph [ref=e254]: Piso 4 — B
+          - cell "Reparación Electricidad" [ref=e255]:
+            - paragraph [ref=e256]: Reparación
+            - paragraph [ref=e257]: Electricidad
+          - cell "normal" [ref=e258]:
+            - generic [ref=e261]: normal
+          - cell "Pendiente" [ref=e262]:
+            - generic [ref=e263]: Pendiente
+          - cell "hace 1 minuto" [ref=e264]
+          - cell [ref=e265]
+        - row "ZIT-003 JR Julia Romero Piso 5 — C Queja Limpieza normal Pendiente hace 4 minutos" [ref=e266] [cursor=pointer]:
+          - cell "ZIT-003" [ref=e267]
+          - cell "JR Julia Romero Piso 5 — C" [ref=e268]:
+            - generic [ref=e269]:
+              - generic [ref=e270]: JR
+              - generic [ref=e271]:
+                - paragraph [ref=e272]: Julia Romero
+                - paragraph [ref=e273]: Piso 5 — C
+          - cell "Queja Limpieza" [ref=e274]:
+            - paragraph [ref=e275]: Queja
+            - paragraph [ref=e276]: Limpieza
+          - cell "normal" [ref=e277]:
+            - generic [ref=e280]: normal
+          - cell "Pendiente" [ref=e281]:
+            - generic [ref=e282]: Pendiente
+          - cell "hace 4 minutos" [ref=e283]
+          - cell [ref=e284]
+        - row "ZIT-002 PR Pedro Ramos Piso 2 — A Reparación Electricidad urgente Pendiente hace 4 minutos" [ref=e285] [cursor=pointer]:
+          - cell "ZIT-002" [ref=e286]
+          - cell "PR Pedro Ramos Piso 2 — A" [ref=e287]:
+            - generic [ref=e288]:
+              - generic [ref=e289]: PR
+              - generic [ref=e290]:
+                - paragraph [ref=e291]: Pedro Ramos
+                - paragraph [ref=e292]: Piso 2 — A
+          - cell "Reparación Electricidad" [ref=e293]:
+            - paragraph [ref=e294]: Reparación
+            - paragraph [ref=e295]: Electricidad
+          - cell "urgente" [ref=e296]:
+            - generic [ref=e299]: urgente
+          - cell "Pendiente" [ref=e300]:
+            - generic [ref=e301]: Pendiente
+          - cell "hace 4 minutos" [ref=e302]
+          - cell [ref=e303]
+        - row "ZIT-001 LV Laura Vega Piso 4 — B Mantenimiento Plomería urgente Pendiente hace 4 minutos" [ref=e304] [cursor=pointer]:
+          - cell "ZIT-001" [ref=e305]
+          - cell "LV Laura Vega Piso 4 — B" [ref=e306]:
+            - generic [ref=e307]:
+              - generic [ref=e308]: LV
+              - generic [ref=e309]:
+                - paragraph [ref=e310]: Laura Vega
+                - paragraph [ref=e311]: Piso 4 — B
+          - cell "Mantenimiento Plomería" [ref=e312]:
+            - paragraph [ref=e313]: Mantenimiento
+            - paragraph [ref=e314]: Plomería
+          - cell "urgente" [ref=e315]:
+            - generic [ref=e318]: urgente
+          - cell "Pendiente" [ref=e319]:
+            - generic [ref=e320]: Pendiente
+          - cell "hace 4 minutos" [ref=e321]
+          - cell [ref=e322]
+    - dialog "Reparación · Electricidad" [ref=e183]:
+      - complementary [ref=e185]:
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - paragraph [ref=e188]: ZIT-004
+            - heading "Reparación · Electricidad" [level=3] [ref=e189]
+          - button "Cerrar detalle" [ref=e190] [cursor=pointer]:
+            - img [ref=e191]
+        - generic [ref=e193]:
+          - img "Foto de la solicitud ZIT-004" [ref=e195]
+          - generic [ref=e196]:
+            - generic [ref=e197]:
+              - paragraph [ref=e198]: Estado
+              - generic [ref=e199]: Pendiente
+            - generic [ref=e200]:
+              - paragraph [ref=e201]: Prioridad actual
+              - generic [ref=e204]: normal
+            - generic [ref=e205]:
+              - paragraph [ref=e206]: Creada
+              - paragraph [ref=e207]: hace 1 minuto
+            - generic [ref=e208]:
+              - paragraph [ref=e209]: Unidad
+              - paragraph [ref=e210]: Piso 4 — B
+          - generic [ref=e211]:
+            - paragraph [ref=e212]: Descripción
+            - paragraph [ref=e213]: El interruptor de la sala hace ruido al apagarlo, parece estar suelto.
+          - generic [ref=e214]:
+            - paragraph [ref=e215]: Cambiar prioridad
+            - generic [ref=e216]:
+              - button "normal" [disabled] [ref=e217]
+              - button "urgente" [ref=e218] [cursor=pointer]
+          - generic [ref=e219]:
+            - paragraph [ref=e220]: Residente
+            - generic [ref=e221]:
+              - paragraph [ref=e222]: Laura Vega
+              - paragraph [ref=e223]: laura@zity-demo.com
+              - paragraph [ref=e224]: +51 999 000 001
+          - generic [ref=e225]:
+            - paragraph [ref=e226]: Historial de estados
+            - list [ref=e227]:
+              - listitem [ref=e228]:
+                - generic [ref=e230]:
+                  - paragraph [ref=e231]:
+                    - text: Estado
+                    - strong [ref=e232]: pendiente
+                  - paragraph [ref=e233]: Solicitud creada
+                  - paragraph [ref=e234]: hace 1 minuto

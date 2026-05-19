@@ -1,0 +1,32 @@
+- generic [ref=e182]:
+  - generic [ref=e183]:
+    - link "Zity" [ref=e184] [cursor=pointer]:
+      - /url: /login
+      - img "Zity" [ref=e185]
+    - paragraph [ref=e186]: Gestión inteligente · Edificios
+  - generic [ref=e187]:
+    - generic [ref=e188]:
+      - heading "Bienvenido de vuelta" [level=2] [ref=e189]
+      - paragraph [ref=e190]: Inicia sesión para acceder a tu panel
+    - generic [ref=e191]:
+      - generic [ref=e192]:
+        - generic [ref=e193]:
+          - generic [ref=e194]: Correo electrónico
+          - textbox "Correo electrónico" [ref=e196]:
+            - /placeholder: tu@correo.com
+        - generic [ref=e198]:
+          - generic [ref=e199]: Contraseña
+          - generic [ref=e200]:
+            - textbox "Contraseña" [ref=e201]:
+              - /placeholder: Tu contraseña
+            - button "Mostrar contraseña" [ref=e202] [cursor=pointer]:
+              - img [ref=e203]
+        - link "¿Olvidaste tu contraseña?" [ref=e207] [cursor=pointer]:
+          - /url: /forgot-password
+        - button "Iniciar sesión" [ref=e209] [cursor=pointer]:
+          - text: Iniciar sesión
+          - img [ref=e210]
+      - paragraph [ref=e213]:
+        - text: ¿No tienes cuenta?
+        - link "Regístrate" [ref=e214] [cursor=pointer]:
+          - /url: /register
